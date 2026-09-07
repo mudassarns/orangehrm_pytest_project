@@ -1,0 +1,128 @@
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+from pages.base_page import BasePage
+from pages.add_employee_page import AddEmployeePage
+from pages.employee_details_page import EmployeeDetailsPage
+from utils.locator_utils import LocatorUtils
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class EmployeeListPage(BasePage):
+
+    EMPLOYEE_LIST_TAB = (
+        By.XPATH,
+        "//a[normalize-space()='Employee List']"
+    )
+
+    ADD_EMPLOYEE_TAB = (
+        By.XPATH,
+        "//a[normalize-space()='Add Employee']"
+    )
+
+    SEARCH_BUTTON = (
+        By.XPATH,
+        "//button[normalize-space()='Search']"
+    )
+
+    EMPLOYEE_RESULT_ROWS = (
+        By.CSS_SELECTOR,
+        ".oxd-table-body .oxd-table-card"
+    )
+
+    EMPLOYEE_ROW = (
+        By.CSS_SELECTOR,
+        ".oxd-table-body .oxd-table-card:first-child"
+    )
+
+    DELETE_EMPLOYEE_BUTTON = (
+        By.XPATH,
+        "//div[contains(@class,'oxd-table-card')][1]//button[.//i[contains(@class,'bi-trash')]]"
+    )
+
+    CONFIRM_DELETE_BUTTON = (
+        By.XPATH,
+        "//button[normalize-space()='Yes, Delete']"
+    )
+    NO_RECORDS_FOUND = (
+    By.XPATH,
+    "//span[normalize-space()='No Records Found']"
+)
+
+    def __init__(self, driver):
+        super().__init__(driver)
+        self.wait_for_visible(self.EMPLOYEE_LIST_TAB)
+
+    def go_to_add_employee(self):
+        self.click(self.ADD_EMPLOYEE_TAB)
+        return AddEmployeePage(self.driver)
+
+    def search_employee_by_id(self, employee_id):
+        employee_id_locator = LocatorUtils.input_by_label("Employee Id")
+
+        self.enter_text(employee_id_locator, employee_id)
+        self.click(self.SEARCH_BUTTON)
+
+        employee_locator = (
+            By.XPATH,
+            f"//div[@role='cell'][normalize-space()='{employee_id}']"
+        )
+
+        WebDriverWait(self.driver, 15).until(
+            lambda driver:
+                len(driver.find_elements(*employee_locator)) > 0
+                or len(driver.find_elements(*self.NO_RECORDS_FOUND)) > 0
+        )
+
+        result_count = self.get_result_count()
+
+        if result_count == 1:
+            logger.info(
+                f"UI VERIFICATION SUCCESS: Employee {employee_id} found"
+            )
+
+        return result_count
+
+    def wait_for_result_count(self, expected_count):
+        WebDriverWait(self.driver, 15).until(
+            lambda driver: len(
+                driver.find_elements(*self.EMPLOYEE_RESULT_ROWS)
+            ) == expected_count
+        )
+
+    def get_result_count(self):
+        return len(
+            self.driver.find_elements(*self.EMPLOYEE_RESULT_ROWS)
+        )
+
+    def is_employee_present(self, employee_id):
+        locator = (
+            By.XPATH,
+            f"//div[@role='cell'][normalize-space()='{employee_id}']"
+        )
+
+        try:
+            WebDriverWait(self.driver, 10).until(
+                EC.visibility_of_element_located(locator)
+            )
+            return True
+        except TimeoutException:
+            return False
+
+    def get_first_result_text(self):
+        rows = self.driver.find_elements(*self.EMPLOYEE_RESULT_ROWS)
+        return rows[0].text
+
+    def open_employee_details(self):
+        self.click(self.EMPLOYEE_ROW)
+        return EmployeeDetailsPage(self.driver)
+
+    def delete_first_employee(self):
+        self.click(self.DELETE_EMPLOYEE_BUTTON)
+        self.click(self.CONFIRM_DELETE_BUTTON)
+        

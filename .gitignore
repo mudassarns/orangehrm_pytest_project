@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Pytest
+.pytest_cache/
+
+# Test reports and generated screenshots
+reports/
+screenshots/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary/experiments
+experiments/
+rough.md
