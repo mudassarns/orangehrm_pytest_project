@@ -1,3 +1,5 @@
+This project demonstrates UI, API, database, and hybrid test automation.
+
 # OrangeHRM Pytest Automation Framework
 
 ## Running OrangeHRM with Docker
