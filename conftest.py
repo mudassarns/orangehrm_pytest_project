@@ -8,7 +8,7 @@ from pages.dashboard_page import DashboardPage
 from api.orangehrm_api import OrangeHRMApi
 from utils.logger import get_logger
 from datetime import datetime
-from utils.screenshot import capture_chrome_window
+from utils.screenshot import capture_failure_screenshot
 from db.database_client import DatabaseClient
 
 
@@ -39,7 +39,8 @@ def pytest_runtest_makereport(item, call):
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            capture_chrome_window(
+            capture_failure_screenshot(
+            driver,
             f"reports/screenshots/{item.name}_{timestamp}.png"
             )
 
