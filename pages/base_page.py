@@ -15,6 +15,16 @@ class BasePage:
         ".oxd-form-loader"
     )
 
+    SIDEPANEL = (
+        By.CSS_SELECTOR,
+        ".oxd-sidepanel"
+    )
+
+    HAMBURGER = (
+        By.CSS_SELECTOR,
+        ".oxd-topbar-header-hamburger"
+    )
+
     def __init__(self, driver):
         self.driver = driver
 
@@ -36,22 +46,36 @@ class BasePage:
             EC.element_to_be_clickable(locator)
         )
 
+    def scroll_into_view(self, element):
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});",
+            element
+        )
+
     def click(self, locator):
         element = self.wait_for_clickable(locator)
+        self.scroll_into_view(element)
         element.click()
 
     def enter_text(self, locator, text):
         def click_input(driver):
             try:
                 element = driver.find_element(*locator)
+                if not element.is_displayed() or not element.is_enabled():
+                    return False
+
+                self.scroll_into_view(element)
                 element.click()
                 return element
+
             except (
                 StaleElementReferenceException,
                 ElementClickInterceptedException
             ):
                 return False
+
         element = WebDriverWait(self.driver, 15).until(click_input)
+
         element.send_keys(Keys.CONTROL, "a")
         element.send_keys(Keys.BACKSPACE)
         element.send_keys(text)
@@ -65,3 +89,21 @@ class BasePage:
         self.driver.add_cookie(cookie)
         self.driver.refresh()
         print("SESSION COOKIE RESTORED")
+
+    def ensure_sidepanel_expanded(self):
+        sidepanel = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(self.SIDEPANEL)
+        )
+
+        if sidepanel.size["width"] == 0:
+            hamburger = self.wait_for_visible(self.HAMBURGER)
+
+            self.driver.execute_script(
+                "arguments[0].click();",
+                hamburger
+            )
+
+            WebDriverWait(self.driver, 10).until(
+                lambda _:
+                self.wait_for_visible(self.SIDEPANEL).size["width"] > 0
+            )
