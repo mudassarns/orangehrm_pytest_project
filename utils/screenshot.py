@@ -1,8 +1,10 @@
 from PIL import Image, ImageDraw, ImageFont
 import platform
+from pathlib import Path
 
 
 def capture_failure_screenshot(driver, file_path):
+    Path(file_path).parent.mkdir(parents=True, exist_ok=True)
     driver.save_screenshot(file_path)
 
     image = Image.open(file_path).convert("RGB")
