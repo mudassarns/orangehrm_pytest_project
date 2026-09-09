@@ -1,5 +1,4 @@
 import pytest
-from selenium import webdriver
 from pages.login_page import LoginPage
 from pages.base_page import BasePage
 from config import Config
@@ -10,7 +9,7 @@ from utils.logger import get_logger
 from datetime import datetime
 from utils.screenshot import capture_failure_screenshot
 from db.database_client import DatabaseClient
-
+from utils.browser_factory import BrowserFactory
 
 logger = get_logger(__name__)
 
@@ -21,6 +20,19 @@ def pytest_addoption(parser):
         action="store",
         default="qa",
         help="Environment to run tests against"
+    )
+
+    parser.addoption(
+        "--browser",
+        action="store",
+        default="chrome",
+        help="Browser to use for test execution"
+    )
+
+    parser.addoption(
+        "--headless",
+        action="store_true",
+        help="Run browser in headless mode"
     )
 
 @pytest.hookimpl(hookwrapper=True)
@@ -51,16 +63,30 @@ def set_environment(request):
 
 
 @pytest.fixture
-def driver():
-    driver = webdriver.Chrome()
+def driver(request):
+    browser = request.config.getoption("--browser")
+    headless = request.config.getoption("--headless")
+
+    driver = BrowserFactory.create(
+        browser=browser,
+        headless=headless
+    )
     driver.maximize_window()
+
     yield driver
+
     driver.quit()
 
 
 @pytest.fixture(scope="session")
-def auth_cookie():
-    driver = webdriver.Chrome()
+def auth_cookie(request):
+    browser = request.config.getoption("--browser")
+    headless = request.config.getoption("--headless")
+
+    driver = BrowserFactory.create(
+        browser=browser,
+        headless=headless
+    )
 
     driver.get(Config.get("ORANGEHRM_BASE_URL"))
 
