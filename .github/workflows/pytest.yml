@@ -49,16 +49,15 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c '
-            if [ -f bin/console ]; then
-              php bin/console orangehrm:install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
-            elif [ -f symfony ]; then
-              php symfony orangehrm:install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
+            if [ -f installer/cli_install.php ]; then
+              php installer/cli_install.php --db_host=mariadb --db-port=3306 --db_name=${{ secrets.QA_DB_NAME }} --db_user=root --db_pass=${{ secrets.QA_DB_PASSWORD }} --admin_user=admin --admin_pass=AdminPassword123!
+            elif [ -f src/scripts/install.php ]; then
+              php src/scripts/install.php --db_host=mariadb --db-port=3306 --db_name=${{ secrets.QA_DB_NAME }} --db_user=root --db_pass=${{ secrets.QA_DB_PASSWORD }} --admin_user=admin --admin_pass=AdminPassword123!
             else
-              INSTALL_SCRIPT=$(find /var/www/ -name console -o -name symfony -o -name symfony_cli 2>/dev/null | head -n 1)
-              php $INSTALL_SCRIPT orangehrm:install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
+              php symfony orangehrm:install --env=install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
             fi
-          '
+          "
 
       - name: Verify OrangeHRM installation status
         run: |
