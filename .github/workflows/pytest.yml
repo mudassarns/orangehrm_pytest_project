@@ -50,7 +50,7 @@ jobs:
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c \
-            "printf 'yes\nmariadb\n3306\n${{ secrets.QA_DB_NAME }}\nroot\n${{ secrets.QA_DB_PASSWORD }}\nyes\nno\nadmin\nAdminPassword123!\nAdminPassword123!\n' | php installer/console install:on-new-database"
+            "printf 'yes\nmariadb\n3306\n${{ secrets.QA_DB_NAME }}\nroot\n${{ secrets.QA_DB_PASSWORD }}\nyes\nno\nMyCompany\nUnited States\nadmin\nAdminPassword123!\nAdminPassword123!\n' | php installer/console install:on-new-database"
 
       - name: Verify OrangeHRM installation status
         run: |
