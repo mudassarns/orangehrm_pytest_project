@@ -62,25 +62,20 @@ jobs:
 
       - name: Install OrangeHRM via Container CLI
         env:
-          DB_HOST: mariadb
-          DB_PORT: "3306"
-          DB_NAME: ${{ secrets.QA_DB_NAME }}
-          DB_USER: root
-          DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          ADMIN_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          echo "Running OrangeHRM installation inside container via CLI..."
-          
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
-            php /var/www/html/symfony orangehrm:install \
-            --db-host="$DB_HOST" \
-            --db-port="$DB_PORT" \
-            --db-name="$DB_NAME" \
-            --db-user="$DB_USER" \
-            --db-password="$DB_PASSWORD" \
-            --admin-username="$ADMIN_USERNAME" \
-            --admin-password="$ADMIN_PASSWORD"
+            php bin/symfony_cli orangehrm:install \
+            --db-host=mariadb \
+            --db-port=3306 \
+            --db-name=${{ secrets.QA_DB_NAME }} \
+            --db-user=root \
+            --db-password=${{ secrets.QA_DB_PASSWORD }} \
+            --admin-user="admin" \
+            --admin-password="AdminPassword123!"
 
       - name: Verify OrangeHRM installation status
         run: |
