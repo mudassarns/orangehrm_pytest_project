@@ -46,18 +46,24 @@ jobs:
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
+          # Create DB if it does not exist
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "CREATE DATABASE IF NOT EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
           
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php bin/calma orangehrm:install \
+          # Run native CLI installer using correct working path
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
+            --no-interaction \
             --db-host=mariadb \
             --db-port=3306 \
             --db-name="${{ secrets.QA_DB_NAME }}" \
             --db-user=root \
             --db-password="${{ secrets.QA_DB_PASSWORD }}" \
-            --admin-username="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
+            --admin-user="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
             --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}" \
-            --no-interaction
+            --organization-name="MyCompany" \
+            --country-code="US"
 
       - name: Fix Storage Permissions & Clear Cache
         run: |
