@@ -33,6 +33,11 @@ jobs:
           docker compose -f docker-orangehrm/docker-compose.yml up -d
 
       - name: Check Docker services
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml ps
 
@@ -44,6 +49,62 @@ jobs:
               sleep 5
             done
           '
+
+      - name: Install OrangeHRM
+        env:
+          DB_HOST: mariadb
+          DB_PORT: 3306
+          DB_NAME: ${{ secrets.QA_DB_NAME }}
+          DB_USER: root
+          DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          ADMIN_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
+        run: |
+          set -e
+
+          BASE="http://localhost:8080/installer/index.php/installer"
+          COOKIE_JAR="/tmp/orangehrm-cookies.txt"
+
+          echo "Initializing installer session..."
+          curl -fsS -c "$COOKIE_JAR" "http://localhost:8080/installer/index.php" > /dev/null
+
+          echo "Configuring OrangeHRM database..."
+          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            -X POST "$BASE/api/database-config" \
+            --data-urlencode "dbType=existing" \
+            --data-urlencode "dbHost=$DB_HOST" \
+            --data-urlencode "dbPort=$DB_PORT" \
+            --data-urlencode "dbUser=$DB_USER" \
+            --data-urlencode "dbPassword=$DB_PASSWORD" \
+            --data-urlencode "dbName=$DB_NAME" \
+            --data-urlencode "enableDataEncryption=false"
+
+          echo "Checking installer system..."
+          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            "$BASE/api/system-check" > /dev/null
+
+          echo "Creating admin user..."
+          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            -X POST "$BASE/api/admin-user" \
+            --data-urlencode "firstName=Automation" \
+            --data-urlencode "lastName=Admin" \
+            --data-urlencode "email=automation@example.com" \
+            --data-urlencode "username=$ADMIN_USERNAME" \
+            --data-urlencode "password=$ADMIN_PASSWORD" \
+            --data-urlencode "registrationConsent=false"
+
+          echo "Running OrangeHRM database installation (this takes ~60s)..."
+          curl -fsS --max-time 300 -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            -X POST "$BASE/api/installation/database"
+
+          echo "Cleaning up installer..."
+          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            -X POST "$BASE/api/clean-up-install"
+
+          echo "Verifying OrangeHRM installation..."
+          curl -fsS -L "http://localhost:8080/web/index.php/auth/login" > /dev/null
+
+          echo "OrangeHRM installation completed successfully."
 
       - name: Inspect OrangeHRM page
         run: |
@@ -68,14 +129,21 @@ jobs:
         run: |
           pytest tests/test_api.py::test_get_employees --browser chrome --headless -v -s --reruns 0
 
-      - name: Upload test reports
+      - name: Upload test reports & screenshots
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
-          name: test-reports
-          path: reports/
+          name: test-artifacts
+          path: |
+            reports/
+            screenshots/
 
       - name: Tear down Docker environment
         if: always()
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml down
+          docker compose -f docker-orangehrm/docker-compose.yml down -v

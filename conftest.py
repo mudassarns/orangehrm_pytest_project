@@ -94,8 +94,6 @@ def auth_cookie(request):
     print(f"Page title: {driver.title}")
 
     login_page = LoginPage(driver)
-
-    login_page = LoginPage(driver)
     dashboard = login_page.login(
         Config.get("ORANGEHRM_USERNAME"),
         Config.get("ORANGEHRM_PASSWORD")
