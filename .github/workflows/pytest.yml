@@ -68,7 +68,7 @@ jobs:
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
-            php bin/symfony_cli orangehrm:install \
+            php symfony orangehrm:install \
             --db-host=mariadb \
             --db-port=3306 \
             --db-name=${{ secrets.QA_DB_NAME }} \
