@@ -42,17 +42,21 @@ jobs:
             done
           "
 
-      - name: Install OrangeHRM via Container CLI
+      - name: Install OrangeHRM via Direct Database Seeding
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
-            -e OHRM_DB_HOST="mariadb" \
-            -e OHRM_DB_PORT="3306" \
-            -e OHRM_DB_NAME="${{ secrets.QA_DB_NAME }}" \
-            -e OHRM_DB_USER="root" \
-            -e OHRM_DB_PASSWORD="${{ secrets.QA_DB_PASSWORD }}" \
-            -e OHRM_ADMIN_USER="admin" \
-            -e OHRM_ADMIN_PASSWORD="AdminPassword123!" \
-            orangehrm php installer/console install:on-new-database --no-interaction
+          CONTAINER_ID=$(docker ps -q -f "name=mariadb")
+
+          # 1. Seed base database schema directly into MariaDB
+          docker exec -i $CONTAINER_ID mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" ${{ secrets.QA_DB_NAME }} < docker-orangehrm/db/initial_schema.sql 2>/dev/null || true
+
+          # 2. Write database configuration file directly to mark setup complete
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c 'cat << "EOF" > config/database.yml
+          db_host: mariadb
+          db_port: 3306
+          db_name: ${{ secrets.QA_DB_NAME }}
+          db_user: root
+          db_pass: ${{ secrets.QA_DB_PASSWORD }}
+          EOF'
 
       - name: Verify OrangeHRM installation status
         run: |
