@@ -41,6 +41,17 @@ jobs:
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml ps
 
+      - name: Wait for MariaDB to be ready
+        run: |
+          timeout 120s bash -c '
+            until docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
+              mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent
+            do
+              echo "Waiting for MariaDB..."
+              sleep 2
+            done
+          '
+
       - name: Wait for OrangeHRM web service
         run: |
           timeout 120s bash -c '
