@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.14.6"
 
@@ -23,237 +23,69 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmariadb-dev
 
-      - name: Debug resolved MariaDB configuration
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: orangehrm_ci
-          MARIADB_PASSWORD: orangehrm_ci_password
-        run: |
-          docker compose -f docker-orangehrm/docker-compose.yml config
-
       - name: Start Docker Stack for CI
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: orangehrm_ci
-          MARIADB_PASSWORD: orangehrm_ci_password
-        run: |
-          docker compose -f docker-orangehrm/docker-compose.yml up -d
-
-      - name: Check Docker services
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
           MARIADB_USER: ${{ secrets.QA_DB_USER }}
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml ps
-
+          docker compose -f docker-orangehrm/docker-compose.yml up -d
 
       - name: Wait for MariaDB to be ready
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: ${{ secrets.QA_DB_USER }}
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           timeout 60s bash -c '
             until docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
-              mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent
+              mariadb-admin ping -h 127.0.0.1 -u root -p"$MARIADB_ROOT_PASSWORD" --silent
             do
               echo "Waiting for MariaDB..."
               sleep 2
             done
           '
 
-      - name: Debug MariaDB container
-        if: always()
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: ${{ secrets.QA_DB_USER }}
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-        run: |
-          docker compose -f docker-orangehrm/docker-compose.yml ps -a
-          docker inspect $(docker compose -f docker-orangehrm/docker-compose.yml ps -aq mariadb) \
-            --format='Status={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}'
-          docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 mariadb
-
       - name: Wait for OrangeHRM web service
         run: |
           timeout 120s bash -c '
-            until curl -sSf http://localhost:8080 > /dev/null
+            until curl -s http://localhost:8080 > /dev/null
             do
               echo "Waiting for OrangeHRM web service..."
               sleep 5
             done
           '
 
-      - name: Install OrangeHRM
+      - name: Install OrangeHRM via Container CLI
         env:
           DB_HOST: mariadb
-          DB_PORT: 3306
+          DB_PORT: "3306"
           DB_NAME: ${{ secrets.QA_DB_NAME }}
           DB_USER: root
           DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           ADMIN_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
           ADMIN_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
         run: |
-          set -e
+          echo "Running OrangeHRM installation inside container via CLI..."
+          
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
+            php /var/www/html/symfony orangehrm:install \
+            --db-host="$DB_HOST" \
+            --db-port="$DB_PORT" \
+            --db-name="$DB_NAME" \
+            --db-user="$DB_USER" \
+            --db-password="$DB_PASSWORD" \
+            --admin-username="$ADMIN_USERNAME" \
+            --admin-password="$ADMIN_PASSWORD"
 
-          BASE="http://localhost:8080/installer/index.php/installer"
-          COOKIE_JAR="/tmp/orangehrm-cookies.txt"
-
-          echo "Initializing installer session..."
-          curl -fsS -c "$COOKIE_JAR" \
-            "http://localhost:8080/installer/index.php" > /dev/null
-
-          echo "Configuring OrangeHRM database..."
-          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -X POST "$BASE/api/database-config" \
-            --data-urlencode "dbType=existing" \
-            --data-urlencode "dbHost=$DB_HOST" \
-            --data-urlencode "dbPort=$DB_PORT" \
-            --data-urlencode "dbUser=$DB_USER" \
-            --data-urlencode "dbPassword=$DB_PASSWORD" \
-            --data-urlencode "dbName=$DB_NAME" \
-            --data-urlencode "enableDataEncryption=false"
-
-          echo "Checking installer system..."
-          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            "$BASE/api/system-check" > /dev/null
-
-          echo "Creating admin user..."
-          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -X POST "$BASE/api/admin-user" \
-            --data-urlencode "firstName=Automation" \
-            --data-urlencode "lastName=Admin" \
-            --data-urlencode "email=automation@example.com" \
-            --data-urlencode "username=$ADMIN_USERNAME" \
-            --data-urlencode "password=$ADMIN_PASSWORD" \
-            --data-urlencode "registrationConsent=false"
-
-          echo "Running OrangeHRM database installation..."
-          DB_INSTALL_RESPONSE=$(mktemp)
-          DB_INSTALL_STATUS=$(curl -sS --max-time 300 \
-            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -o "$DB_INSTALL_RESPONSE" \
-            -w "%{http_code}" \
-            -X POST "$BASE/api/installation/database")
-
-          echo "Database installation HTTP status: $DB_INSTALL_STATUS"
-          echo "Database installation response:"
-          cat "$DB_INSTALL_RESPONSE"
-
-          if [ "$DB_INSTALL_STATUS" != "200" ]; then
+      - name: Verify OrangeHRM installation status
+        run: |
+          echo "Verifying HTTP response code from Login page..."
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
+          echo "Login endpoint HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Installation verification failed!"
             exit 1
           fi
-
-          echo "Registering installer start..."
-          curl -fsS --max-time 120 \
-            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -X POST "$BASE/api/send-data/installer-start"
-
-          echo "Running OrangeHRM pre-migration check..."
-          PRE_MIGRATION_RESPONSE=$(mktemp)
-          PRE_MIGRATION_STATUS=$(curl -sS --max-time 120 \
-            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -o "$PRE_MIGRATION_RESPONSE" \
-            -w "%{http_code}" \
-            -X POST "$BASE/api/installation/pre-migration")
-
-          echo "Pre-migration HTTP status: $PRE_MIGRATION_STATUS"
-          echo "Pre-migration response:"
-          cat "$PRE_MIGRATION_RESPONSE"
-
-          if [ "$PRE_MIGRATION_STATUS" != "200" ]; then
-            exit 1
-          fi
-
-          echo "Cleaning up installer..."
-          curl -fsS \
-            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -X POST "$BASE/api/clean-up-install"
-
-          echo "Verifying OrangeHRM installation..."
-          curl -fsS --max-time 30 \
-            -o /dev/null \
-            "http://localhost:8080/web/index.php/auth/login"
-
-          echo "OrangeHRM installation completed successfully."
-
-      - name: Verify OrangeHRM database schema
-        if: always()
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: orangehrm_ci
-          MARIADB_PASSWORD: orangehrm_ci_password
-          DB_NAME: ${{ secrets.QA_DB_NAME }}
-        run: |
-          echo "=== Checking OrangeHRM database ==="
-
-          timeout 20s docker compose \
-            -f docker-orangehrm/docker-compose.yml \
-            exec -T mariadb \
-            mariadb \
-            -u root \
-            -p"$MARIADB_ROOT_PASSWORD" \
-            "$DB_NAME" \
-            -e "SELECT DATABASE(); SHOW TABLES;" || true
-
-          echo "=== Checking key OrangeHRM tables ==="
-
-          timeout 20s docker compose \
-            -f docker-orangehrm/docker-compose.yml \
-            exec -T mariadb \
-            mariadb \
-            -u root \
-            -p"$MARIADB_ROOT_PASSWORD" \
-            "$DB_NAME" \
-            -e "
-              SELECT TABLE_NAME
-              FROM information_schema.TABLES
-              WHERE TABLE_SCHEMA='$DB_NAME'
-                AND TABLE_NAME IN (
-                  'ohrm_user',
-                  'hs_hr_employee',
-                  'ohrm_config'
-                );
-            " || true
-
-      - name: Debug OrangeHRM container
-        if: always()
-        run: |
-          echo "=== Container status ==="
-          docker compose -f docker-orangehrm/docker-compose.yml ps -a
-
-          echo "=== OrangeHRM container logs ==="
-          timeout 20s docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 orangehrm || true
-
-          echo "=== OrangeHRM application/installer log files ==="
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
-            sh -c 'find /var/www /opt /var/log -type f \( -name "*.log" -o -name "error.log" \) 2>/dev/null | head -100'
-
-          echo "=== Recent OrangeHRM error log content ==="
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
-            sh -c 'for f in $(find /var/www /opt /var/log -type f \( -name "*.log" -o -name "error.log" \) 2>/dev/null | head -20); do echo "===== $f ====="; tail -100 "$f"; done' || true
-
-          echo "=== Login endpoint response ==="
-          timeout 15s curl -i -L --max-time 10 \
-            "http://localhost:8080/web/index.php/auth/login" || true
-
-          echo "=== OrangeHRM root response ==="
-          timeout 15s curl -i -L --max-time 10 \
-            "http://localhost:8080/" || true
-
-      - name: Inspect OrangeHRM page
-        run: |
-          echo "=== OrangeHRM response ==="
-          curl -s http://localhost:8080 \
-            | grep -Ei "login|install|setup|orangehrm|username" \
-            | head -30
 
       - name: Install Python dependencies
         run: |
@@ -271,11 +103,7 @@ jobs:
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          pytest tests/test_api.py::test_get_employees \
-            --browser chrome \
-            --headless \
-            -v -s \
-            --reruns 0
+          pytest --browser chrome --headless -v
 
       - name: Upload Test Reports & Screenshots
         if: always()
