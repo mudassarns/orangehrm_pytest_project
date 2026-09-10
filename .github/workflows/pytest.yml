@@ -34,12 +34,21 @@ jobs:
 
       - name: Wait for MariaDB to be ready
         run: |
-          timeout 60s bash -c '
-            until docker exec $(docker ps -a -q -f "name=mariadb" | head -n 1) mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent 2>/dev/null; do
-              echo "Waiting for MariaDB..."
-              sleep 2
-            done
-          '
+          CONTAINER_ID=$(docker ps -a -q -f "name=mariadb" | head -n 1)
+          
+          # Wait up to 30s for readiness
+          for i in {1..15}; do
+            if docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent 2>/dev/null; then
+              echo "MariaDB is ready!"
+              exit 0
+            fi
+            echo "Waiting for MariaDB..."
+            sleep 2
+          done
+
+          echo "::error::MariaDB failed to start. Container logs:"
+          docker logs $CONTAINER_ID
+          exit 1
 
       - name: Wait for OrangeHRM web service
         run: |
