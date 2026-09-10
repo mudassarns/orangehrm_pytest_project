@@ -52,12 +52,12 @@ jobs:
           # 1. Ensure database exists
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "CREATE DATABASE IF NOT EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Execute installer/console with piped setup inputs
+          # 2. Feed exact interactive answers starting with 'yes' for license acceptance
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            printf 'mariadb\n3306\n${{ secrets.QA_DB_NAME }}\nroot\n${{ secrets.QA_DB_PASSWORD }}\n${{ secrets.QA_ORANGEHRM_USERNAME }}\n${{ secrets.QA_ORANGEHRM_PASSWORD }}\n${{ secrets.QA_ORANGEHRM_PASSWORD }}\n' | php installer/console install:on-new-database
+            printf 'yes\nmariadb\n3306\n${{ secrets.QA_DB_NAME }}\nroot\n${{ secrets.QA_DB_PASSWORD }}\nyes\n${{ secrets.QA_ORANGEHRM_USERNAME }}\n${{ secrets.QA_ORANGEHRM_PASSWORD }}\n${{ secrets.QA_ORANGEHRM_PASSWORD }}\nyes\n' | php installer/console install:on-new-database
           "
 
-          # 3. Set storage and configuration permissions
+          # 3. Set storage permissions
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             chmod -R 777 /var/www/html/src/storage /var/www/html/lib/confs
           "
