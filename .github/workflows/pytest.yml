@@ -150,6 +150,12 @@ jobs:
 
           echo "OrangeHRM installation completed successfully."
 
+      - name: Debug OrangeHRM container
+        if: always()
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml ps -a
+          docker compose -f docker-orangehrm/docker-compose.yml logs --tail=300 orangehrm
+
       - name: Inspect OrangeHRM page
         run: |
           echo "=== OrangeHRM response ==="
