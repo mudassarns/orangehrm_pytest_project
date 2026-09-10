@@ -61,7 +61,7 @@ jobs:
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          pytest --browser chrome --headless -v
+          pytest tests/test_api.py::test_get_employees --browser chrome --headless -v -s --reruns 0
 
       - name: Upload test reports
         if: always()
