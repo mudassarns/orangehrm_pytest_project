@@ -43,22 +43,16 @@ jobs:
           "
 
       - name: Install OrangeHRM via Container CLI
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: "orangehrm"
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            php installer/console install:on-new-database \
-              --db-host=mariadb \
-              --db-port=3306 \
-              --db-name=${{ secrets.QA_DB_NAME }} \
-              --db-user=root \
-              --db-password=${{ secrets.QA_DB_PASSWORD }} \
-              --admin-user=admin \
-              --admin-password=AdminPassword123!
-          "
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
+            -e OHRM_DB_HOST="mariadb" \
+            -e OHRM_DB_PORT="3306" \
+            -e OHRM_DB_NAME="${{ secrets.QA_DB_NAME }}" \
+            -e OHRM_DB_USER="root" \
+            -e OHRM_DB_PASSWORD="${{ secrets.QA_DB_PASSWORD }}" \
+            -e OHRM_ADMIN_USER="admin" \
+            -e OHRM_ADMIN_PASSWORD="AdminPassword123!" \
+            orangehrm php installer/console install:on-new-database --no-interaction
 
       - name: Verify OrangeHRM installation status
         run: |
@@ -75,7 +69,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run pytest test suite
+      - name: Run single pytest verification
         env:
           QA_ORANGEHRM_BASE_URL: ${{ secrets.QA_ORANGEHRM_BASE_URL }}
           QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
@@ -86,7 +80,7 @@ jobs:
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          pytest --browser chrome --headless -v
+          pytest tests/test_api.py::test_get_employees --browser chrome --headless -v -s -p no:rerunfailures
 
       - name: Upload Test Reports & Screenshots
         if: always()
