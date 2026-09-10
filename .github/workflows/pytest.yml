@@ -42,52 +42,30 @@ jobs:
             done
           "
 
-      - name: Programmatic OrangeHRM Installation
+      - name: Install OrangeHRM via Native CLI
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Create target database
+          # 1. Create Database
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "CREATE DATABASE IF NOT EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Seed database schema directly from the installer directory
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            for f in /var/www/html/installer/dbscript/dbscript-1.sql /var/www/html/installer/dbscript/dbscript-2.sql /var/www/html/db/dbscript*.sql; do
-              if [ -f \"\$f\" ]; then
-                mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < \"\$f\" 2>/dev/null || true
-              fi
-            done
-          "
+          # 2. Run OrangeHRM 5.x CLI setup
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php symfony/bin/calma orangehrm:install \
+            --db-host=mariadb \
+            --db-port=3306 \
+            --db-name="${{ secrets.QA_DB_NAME }}" \
+            --db-user=root \
+            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
+            --admin-username="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
+            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}" \
+            --no-interaction
 
-          # 3. Create Conf.php and grant full write permissions
+          # 3. Set required storage permissions
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage
-            cat << 'EOF' > /var/www/html/lib/confs/Conf.php
-          <?php
-          class Conf {
-              public \$dbhost = 'mariadb';
-              public \$dbport = '3306';
-              public \$dbname = '${{ secrets.QA_DB_NAME }}';
-              public \$dbuser = 'root';
-              public \$dbpass = '${{ secrets.QA_DB_PASSWORD }}';
-              public \$version = '5.9';
-          }
-          EOF
-                      chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
-                    "
-
-                  # 4. Clear/rebuild cache container
-                  docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php -r "
-                    if (file_exists('/var/www/html/src/storage/cms')) {
-                        array_map('unlink', glob('/var/www/html/src/storage/cms/*'));
-                    }
-                  " || true
-
-      - name: Fix Storage Permissions & Clear Cache
-        run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            chmod -R 777 /var/www/html/src/storage /var/www/html/lib/confs 2>/dev/null || true
-            php bin/calma cache:clear 2>/dev/null || true
+            chmod -R 777 /var/www/html/src/storage /var/www/html/lib/confs
           "
 
       - name: Verify OrangeHRM installation status
