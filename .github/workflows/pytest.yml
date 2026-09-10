@@ -35,10 +35,13 @@ jobs:
       - name: Wait for MariaDB to be ready
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           timeout 60s bash -c '
             until docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
-              mariadb-admin ping -h 127.0.0.1 -u root -p"$MARIADB_ROOT_PASSWORD" --silent
+              mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent
             do
               echo "Waiting for MariaDB..."
               sleep 2
