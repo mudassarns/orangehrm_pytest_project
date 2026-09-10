@@ -58,18 +58,18 @@ jobs:
             done
           '
 
-          - name: Debug MariaDB container
-          if: always()
-          env:
-            MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-            MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-            MARIADB_USER: ${{ secrets.QA_DB_USER }}
-            MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          run: |
-            docker compose -f docker-orangehrm/docker-compose.yml ps -a
-            docker inspect $(docker compose -f docker-orangehrm/docker-compose.yml ps -aq mariadb) \
-              --format='Status={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}'
-            docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 mariadb
+      - name: Debug MariaDB container
+        if: always()
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml ps -a
+          docker inspect $(docker compose -f docker-orangehrm/docker-compose.yml ps -aq mariadb) \
+            --format='Status={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}'
+          docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 mariadb
 
       - name: Wait for OrangeHRM web service
         run: |
