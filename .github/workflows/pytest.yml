@@ -45,12 +45,28 @@ jobs:
       - name: Install OrangeHRM via Container CLI
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ""
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c \
-            "printf 'yes\nmariadb\n3306\n${{ secrets.QA_DB_NAME }}\nroot\n${{ secrets.QA_DB_PASSWORD }}\nyes\nno\nMyCompany\nUnited States of America\nadmin\nAdminPassword123!\nAdminPassword123!\n' | php installer/console install:on-new-database"
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php -r "
+            require_once 'src/vendor/autoload.php';
+            define('SF_APP', 'installer');
+            
+            use OrangeHRM\Installer\Service\InstallationService;
+            use OrangeHRM\Installer\Dto\DatabaseConfigDto;
+            use OrangeHRM\Installer\Dto\AdminUserDto;
+            use OrangeHRM\Installer\Dto\InstanceConfigDto;
+
+            // Initialize DB and write config files directly without console prompts
+            \$dbConfig = new DatabaseConfigDto('mariadb', 3306, '${{ secrets.QA_DB_NAME }}', 'root', '${{ secrets.QA_DB_PASSWORD }}');
+            \$adminDto = new AdminUserDto('admin', 'AdminPassword123!');
+            \$instanceDto = new InstanceConfigDto('MyCompany', 'US');
+
+            \$service = new InstallationService();
+            \$service->install(\$dbConfig, \$adminDto, \$instanceDto);
+          " || docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c \
+            "php bin/calma db:create && php bin/calma db:migrate"
 
       - name: Verify OrangeHRM installation status
         run: |
