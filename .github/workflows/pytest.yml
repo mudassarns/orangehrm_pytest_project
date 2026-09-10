@@ -34,31 +34,13 @@ jobs:
 
       - name: Wait for MariaDB to be ready
         run: |
-          CONTAINER_ID=$(docker ps -a -q -f "name=mariadb" | head -n 1)
-          
-          # Wait up to 30s for readiness
-          for i in {1..15}; do
-            if docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent 2>/dev/null; then
-              echo "MariaDB is ready!"
-              exit 0
-            fi
-            echo "Waiting for MariaDB..."
-            sleep 2
-          done
-
-          echo "::error::MariaDB failed to start. Container logs:"
-          docker logs $CONTAINER_ID
-          exit 1
-
-      - name: Wait for OrangeHRM web service
-        run: |
-          timeout 120s bash -c '
-            until curl -s http://localhost:8080 > /dev/null
-            do
-              echo "Waiting for OrangeHRM web service..."
-              sleep 5
+          CONTAINER_ID=$(docker ps -q -f "name=mariadb")
+          timeout 60s bash -c "
+            until docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p\"${{ secrets.QA_DB_PASSWORD }}\" --silent 2>/dev/null; do
+              echo 'Waiting for MariaDB...'
+              sleep 2
             done
-          '
+          "
 
       - name: Install OrangeHRM via Container CLI
         env:
@@ -67,15 +49,16 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
-            php symfony orangehrm:install \
-            --db-host=mariadb \
-            --db-port=3306 \
-            --db-name=${{ secrets.QA_DB_NAME }} \
-            --db-user=root \
-            --db-password=${{ secrets.QA_DB_PASSWORD }} \
-            --admin-user="admin" \
-            --admin-password="AdminPassword123!"
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c '
+            if [ -f bin/console ]; then
+              php bin/console orangehrm:install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
+            elif [ -f symfony ]; then
+              php symfony orangehrm:install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
+            else
+              INSTALL_SCRIPT=$(find /var/www/ -name console -o -name symfony -o -name symfony_cli 2>/dev/null | head -n 1)
+              php $INSTALL_SCRIPT orangehrm:install --db-host=mariadb --db-port=3306 --db-name=${{ secrets.QA_DB_NAME }} --db-user=root --db-password=${{ secrets.QA_DB_PASSWORD }} --admin-user=admin --admin-password=AdminPassword123!
+            fi
+          '
 
       - name: Verify OrangeHRM installation status
         run: |
@@ -120,7 +103,7 @@ jobs:
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml down -v
