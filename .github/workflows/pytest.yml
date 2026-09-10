@@ -150,6 +150,43 @@ jobs:
 
           echo "OrangeHRM installation completed successfully."
 
+      - name: Verify OrangeHRM database schema
+        if: always()
+        env:
+          DB_NAME: ${{ secrets.QA_DB_NAME }}
+          DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+        run: |
+          echo "=== Checking OrangeHRM database ==="
+
+          timeout 20s docker compose \
+            -f docker-orangehrm/docker-compose.yml \
+            exec -T mariadb \
+            mariadb \
+            -u root \
+            -p"$DB_PASSWORD" \
+            -e "SELECT DATABASE(); SHOW TABLES;" \
+            "$DB_NAME" || true
+
+          echo "=== Checking key OrangeHRM tables ==="
+
+          timeout 20s docker compose \
+            -f docker-orangehrm/docker-compose.yml \
+            exec -T mariadb \
+            mariadb \
+            -u root \
+            -p"$DB_PASSWORD" \
+            -e "
+              SELECT
+                TABLE_NAME
+              FROM information_schema.TABLES
+              WHERE TABLE_SCHEMA='$DB_NAME'
+                AND TABLE_NAME IN (
+                  'ohrm_user',
+                  'hs_hr_employee',
+                  'ohrm_config'
+                );
+            " || true
+
       - name: Debug OrangeHRM container
         if: always()
         run: |
