@@ -46,17 +46,31 @@ jobs:
         run: |
           CONTAINER_ID=$(docker ps -q -f "name=mariadb")
 
-          # 1. Seed base database schema directly into MariaDB
-          docker exec -i $CONTAINER_ID mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" ${{ secrets.QA_DB_NAME }} < docker-orangehrm/db/initial_schema.sql 2>/dev/null || true
+          # 1. Import base schema directly from inside the OrangeHRM container
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
+            if [ -f installer/environment/dbscript/dbscript-1.sql ]; then
+              mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < installer/environment/dbscript/dbscript-1.sql
+            elif [ -f dbscript/dbscript-1.sql ]; then
+              mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < dbscript/dbscript-1.sql
+            fi
+          " || true
 
-          # 2. Write database configuration file directly to mark setup complete
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c 'cat << "EOF" > config/database.yml
-          db_host: mariadb
-          db_port: 3306
-          db_name: ${{ secrets.QA_DB_NAME }}
-          db_user: root
-          db_pass: ${{ secrets.QA_DB_PASSWORD }}
-          EOF'
+          # 2. Write configuration parameters directly to lib/confs/Conf.php
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c '
+            mkdir -p lib/confs
+            cat << "EOF" > lib/confs/Conf.php
+          <?php
+          class Conf {
+            public $smtphost;
+            public $dbhost = "mariadb";
+            public $dbport = "3306";
+            public $dbname = "${{ secrets.QA_DB_NAME }}";
+            public $dbuser = "root";
+            public $dbpass = "${{ secrets.QA_DB_PASSWORD }}";
+            public $version = "5.9";
+          }
+          EOF
+          '
 
       - name: Verify OrangeHRM installation status
         run: |
