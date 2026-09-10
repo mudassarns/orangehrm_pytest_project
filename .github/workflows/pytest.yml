@@ -23,12 +23,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmariadb-dev
 
+      - name: Debug resolved MariaDB configuration
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: orangehrm_ci
+          MARIADB_PASSWORD: orangehrm_ci_password
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml config
+
       - name: Start Docker Stack for CI
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: ${{ secrets.QA_DB_USER }}
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_USER: orangehrm_ci
+          MARIADB_PASSWORD: orangehrm_ci_password
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml up -d
 
