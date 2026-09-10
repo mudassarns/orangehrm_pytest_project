@@ -43,16 +43,21 @@ jobs:
           "
 
       - name: Install OrangeHRM via Container CLI
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
-            -e OHRM_DB_HOST="mariadb" \
-            -e OHRM_DB_PORT="3306" \
-            -e OHRM_DB_NAME="${{ secrets.QA_DB_NAME }}" \
-            -e OHRM_DB_USER="root" \
-            -e OHRM_DB_PASSWORD="${{ secrets.QA_DB_PASSWORD }}" \
-            -e OHRM_ADMIN_USER="admin" \
-            -e OHRM_ADMIN_PASSWORD="AdminPassword123!" \
-            orangehrm bash -c "yes '' | php installer/console install:on-new-database"
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
+            --db-host="mariadb" \
+            --db-port="3306" \
+            --db-name="${{ secrets.QA_DB_NAME }}" \
+            --db-user="root" \
+            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
+            --admin-user="admin" \
+            --admin-password="AdminPassword123!" \
+            --accept-license
 
       - name: Verify OrangeHRM installation status
         run: |
