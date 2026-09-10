@@ -45,6 +45,11 @@ jobs:
             done
           '
 
+      - name: Inspect OrangeHRM page
+        run: |
+          echo "=== OrangeHRM response ==="
+          curl -s http://localhost:8080 | grep -Ei "login|install|setup|orangehrm|username" | head -30
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip

@@ -90,6 +90,11 @@ def auth_cookie(request):
 
     driver.get(Config.get("ORANGEHRM_BASE_URL"))
 
+    print(f"Current URL: {driver.current_url}")
+    print(f"Page title: {driver.title}")
+
+    login_page = LoginPage(driver)
+
     login_page = LoginPage(driver)
     dashboard = login_page.login(
         Config.get("ORANGEHRM_USERNAME"),
