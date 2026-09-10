@@ -63,18 +63,18 @@ jobs:
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             mkdir -p /var/www/html/lib/confs /var/www/html/src/storage
             cat << 'EOF' > /var/www/html/lib/confs/Conf.php
-        <?php
-        class Conf {
-            public \$dbhost = 'mariadb';
-            public \$dbport = '3306';
-            public \$dbname = '${{ secrets.QA_DB_NAME }}';
-            public \$dbuser = 'root';
-            public \$dbpass = '${{ secrets.QA_DB_PASSWORD }}';
-            public \$version = '5.9';
-        }
-        EOF
-                    chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
-                  "
+          <?php
+          class Conf {
+              public \$dbhost = 'mariadb';
+              public \$dbport = '3306';
+              public \$dbname = '${{ secrets.QA_DB_NAME }}';
+              public \$dbuser = 'root';
+              public \$dbpass = '${{ secrets.QA_DB_PASSWORD }}';
+              public \$version = '5.9';
+          }
+          EOF
+                      chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
+                    "
 
                   # 4. Clear/rebuild cache container
                   docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php -r "
