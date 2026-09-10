@@ -152,9 +152,18 @@ jobs:
 
       - name: Debug OrangeHRM container
         if: always()
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: orangehrm_ci
+          MARIADB_PASSWORD: orangehrm_ci_password
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml ps -a
+          echo "=== OrangeHRM container logs ==="
           docker compose -f docker-orangehrm/docker-compose.yml logs --tail=300 orangehrm
+          echo "=== Apache error log ==="
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
+            sh -c 'tail -300 /var/log/apache2/error.log || true'
 
       - name: Inspect OrangeHRM page
         run: |
