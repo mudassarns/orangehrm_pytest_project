@@ -232,6 +232,14 @@ jobs:
           echo "=== OrangeHRM container logs ==="
           timeout 20s docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 orangehrm || true
 
+          echo "=== OrangeHRM application/installer log files ==="
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
+            sh -c 'find /var/www /opt /var/log -type f \( -name "*.log" -o -name "error.log" \) 2>/dev/null | head -100'
+
+          echo "=== Recent OrangeHRM error log content ==="
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm \
+            sh -c 'for f in $(find /var/www /opt /var/log -type f \( -name "*.log" -o -name "error.log" \) 2>/dev/null | head -20); do echo "===== $f ====="; tail -100 "$f"; done' || true
+
           echo "=== Login endpoint response ==="
           timeout 15s curl -i -L --max-time 10 \
             "http://localhost:8080/web/index.php/auth/login" || true
