@@ -42,28 +42,46 @@ jobs:
             done
           "
 
-      - name: Install OrangeHRM via CLI
+      - name: Programmatic OrangeHRM Installation
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: "orangehrm"
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # Create DB if it does not exist
+          # 1. Create target database
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "CREATE DATABASE IF NOT EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
-          
-          # Run native CLI installer using correct working path
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
-            --no-interaction \
-            --db-host=mariadb \
-            --db-port=3306 \
-            --db-name="${{ secrets.QA_DB_NAME }}" \
-            --db-user=root \
-            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
-            --admin-user="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
-            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}" \
-            --organization-name="MyCompany" \
-            --country-code="US"
+
+          # 2. Seed database schema directly from the installer directory
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
+            for f in /var/www/html/installer/dbscript/dbscript-1.sql /var/www/html/installer/dbscript/dbscript-2.sql /var/www/html/db/dbscript*.sql; do
+              if [ -f \"\$f\" ]; then
+                mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < \"\$f\" 2>/dev/null || true
+              fi
+            done
+          "
+
+          # 3. Create Conf.php and grant full write permissions
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
+            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage
+            cat << 'EOF' > /var/www/html/lib/confs/Conf.php
+        <?php
+        class Conf {
+            public \$dbhost = 'mariadb';
+            public \$dbport = '3306';
+            public \$dbname = '${{ secrets.QA_DB_NAME }}';
+            public \$dbuser = 'root';
+            public \$dbpass = '${{ secrets.QA_DB_PASSWORD }}';
+            public \$version = '5.9';
+        }
+        EOF
+                    chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
+                  "
+
+                  # 4. Clear/rebuild cache container
+                  docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php -r "
+                    if (file_exists('/var/www/html/src/storage/cms')) {
+                        array_map('unlink', glob('/var/www/html/src/storage/cms/*'));
+                    }
+                  " || true
 
       - name: Fix Storage Permissions & Clear Cache
         run: |
