@@ -110,7 +110,7 @@ jobs:
             "http://localhost:8080/installer/index.php" > /dev/null
 
           echo "Configuring OrangeHRM database..."
-          curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
             -X POST "$BASE/api/database-config" \
             --data-urlencode "dbType=existing" \
             --data-urlencode "dbHost=$DB_HOST" \
@@ -118,8 +118,7 @@ jobs:
             --data-urlencode "dbUser=$DB_USER" \
             --data-urlencode "dbPassword=$DB_PASSWORD" \
             --data-urlencode "dbName=$DB_NAME" \
-            --data-urlencode "enableDataEncryption=false" \
-            -w "\nHTTP_STATUS=%{http_code}\n"
+            --data-urlencode "enableDataEncryption=false"
 
           echo "Checking installer system..."
           curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
@@ -140,21 +139,36 @@ jobs:
             -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
             -X POST "$BASE/api/installation/database"
 
+          echo "Registering installer start..."
+          curl -fsS --max-time 120 \
+            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            -X POST "$BASE/api/send-data/installer-start"
+
+          echo "Running OrangeHRM pre-migration check..."
+          curl -fsS --max-time 120 \
+            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+            -X POST "$BASE/api/installation/pre-migration"
+
           echo "Cleaning up installer..."
-          curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+          curl -fsS \
+            -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
             -X POST "$BASE/api/clean-up-install"
 
           echo "Verifying OrangeHRM installation..."
-          curl -i -L \
-            "http://localhost:8080/web/index.php/auth/login" || true
+          curl -fsS --max-time 30 \
+            -o /dev/null \
+            "http://localhost:8080/web/index.php/auth/login"
 
           echo "OrangeHRM installation completed successfully."
 
       - name: Verify OrangeHRM database schema
         if: always()
         env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: orangehrm_ci
+          MARIADB_PASSWORD: orangehrm_ci_password
           DB_NAME: ${{ secrets.QA_DB_NAME }}
-          DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           echo "=== Checking OrangeHRM database ==="
 
@@ -163,9 +177,9 @@ jobs:
             exec -T mariadb \
             mariadb \
             -u root \
-            -p"$DB_PASSWORD" \
-            -e "SELECT DATABASE(); SHOW TABLES;" \
-            "$DB_NAME" || true
+            -p"$MARIADB_ROOT_PASSWORD" \
+            "$DB_NAME" \
+            -e "SELECT DATABASE(); SHOW TABLES;" || true
 
           echo "=== Checking key OrangeHRM tables ==="
 
@@ -174,10 +188,10 @@ jobs:
             exec -T mariadb \
             mariadb \
             -u root \
-            -p"$DB_PASSWORD" \
+            -p"$MARIADB_ROOT_PASSWORD" \
+            "$DB_NAME" \
             -e "
-              SELECT
-                TABLE_NAME
+              SELECT TABLE_NAME
               FROM information_schema.TABLES
               WHERE TABLE_SCHEMA='$DB_NAME'
                 AND TABLE_NAME IN (
