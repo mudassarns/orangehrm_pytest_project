@@ -41,6 +41,16 @@ jobs:
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml ps
 
+      - name: Debug MariaDB logs
+        if: always()
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml logs mariadb
+
       - name: Wait for MariaDB to be ready
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
