@@ -135,9 +135,20 @@ jobs:
             --data-urlencode "registrationConsent=false"
 
           echo "Running OrangeHRM database installation..."
-          curl -fsS --max-time 300 \
+          DB_INSTALL_RESPONSE=$(mktemp)
+          DB_INSTALL_STATUS=$(curl -sS --max-time 300 \
             -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -X POST "$BASE/api/installation/database"
+            -o "$DB_INSTALL_RESPONSE" \
+            -w "%{http_code}" \
+            -X POST "$BASE/api/installation/database")
+
+          echo "Database installation HTTP status: $DB_INSTALL_STATUS"
+          echo "Database installation response:"
+          cat "$DB_INSTALL_RESPONSE"
+
+          if [ "$DB_INSTALL_STATUS" != "200" ]; then
+            exit 1
+          fi
 
           echo "Registering installer start..."
           curl -fsS --max-time 120 \
@@ -145,9 +156,20 @@ jobs:
             -X POST "$BASE/api/send-data/installer-start"
 
           echo "Running OrangeHRM pre-migration check..."
-          curl -fsS --max-time 120 \
+          PRE_MIGRATION_RESPONSE=$(mktemp)
+          PRE_MIGRATION_STATUS=$(curl -sS --max-time 120 \
             -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
-            -X POST "$BASE/api/installation/pre-migration"
+            -o "$PRE_MIGRATION_RESPONSE" \
+            -w "%{http_code}" \
+            -X POST "$BASE/api/installation/pre-migration")
+
+          echo "Pre-migration HTTP status: $PRE_MIGRATION_STATUS"
+          echo "Pre-migration response:"
+          cat "$PRE_MIGRATION_RESPONSE"
+
+          if [ "$PRE_MIGRATION_STATUS" != "200" ]; then
+            exit 1
+          fi
 
           echo "Cleaning up installer..."
           curl -fsS \
