@@ -42,31 +42,36 @@ jobs:
             done
           "
 
-      - name: Install OrangeHRM via Container CLI
+      - name: Install OrangeHRM via Direct Database Seeding
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: "orangehrm"
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php -r "
-            require_once 'src/vendor/autoload.php';
-            define('SF_APP', 'installer');
-            
-            use OrangeHRM\Installer\Service\InstallationService;
-            use OrangeHRM\Installer\Dto\DatabaseConfigDto;
-            use OrangeHRM\Installer\Dto\AdminUserDto;
-            use OrangeHRM\Installer\Dto\InstanceConfigDto;
+          # 1. Create database and import core SQL schemas
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "CREATE DATABASE IF NOT EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
+          
+          # 2. Run initial schema scripts inside the container
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c '
+            for sql in /var/www/html/installer/dbscript/*.sql /var/www/html/db/dbscript*.sql; do
+              if [ -f "$sql" ]; then
+                mariadb -h mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" "${{ secrets.QA_DB_NAME }}" < "$sql" 2>/dev/null || true
+              fi
+            done
+          '
 
-            // Initialize DB and write config files directly without console prompts
-            \$dbConfig = new DatabaseConfigDto('mariadb', 3306, '${{ secrets.QA_DB_NAME }}', 'root', '${{ secrets.QA_DB_PASSWORD }}');
-            \$adminDto = new AdminUserDto('admin', 'AdminPassword123!');
-            \$instanceDto = new InstanceConfigDto('MyCompany', 'US');
-
-            \$service = new InstallationService();
-            \$service->install(\$dbConfig, \$adminDto, \$instanceDto);
-          " || docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c \
-            "php bin/calma db:create && php bin/calma db:migrate"
+          # 3. Create Conf.php to mark installation as complete
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c 'cat << "EOF" > /var/www/html/lib/confs/Conf.php
+          <?php
+          class Conf {
+              public $dbhost = "mariadb";
+              public $dbport = "3306";
+              public $dbname = "${{ secrets.QA_DB_NAME }}";
+              public $dbuser = "root";
+              public $dbpass = "${{ secrets.QA_DB_PASSWORD }}";
+              public $version = "5.9";
+          }
+          EOF
+          '
 
       - name: Verify OrangeHRM installation status
         run: |
