@@ -42,35 +42,17 @@ jobs:
             done
           "
 
-      - name: Install OrangeHRM via Direct Database Seeding
+      - name: Install OrangeHRM via Container CLI
         run: |
-          CONTAINER_ID=$(docker ps -q -f "name=mariadb")
-
-          # 1. Import base schema directly from inside the OrangeHRM container
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            if [ -f installer/environment/dbscript/dbscript-1.sql ]; then
-              mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < installer/environment/dbscript/dbscript-1.sql
-            elif [ -f dbscript/dbscript-1.sql ]; then
-              mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < dbscript/dbscript-1.sql
-            fi
-          " || true
-
-          # 2. Write configuration parameters directly to lib/confs/Conf.php
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c '
-            mkdir -p lib/confs
-            cat << "EOF" > lib/confs/Conf.php
-          <?php
-          class Conf {
-            public $smtphost;
-            public $dbhost = "mariadb";
-            public $dbport = "3306";
-            public $dbname = "${{ secrets.QA_DB_NAME }}";
-            public $dbuser = "root";
-            public $dbpass = "${{ secrets.QA_DB_PASSWORD }}";
-            public $version = "5.9";
-          }
-          EOF
-          '
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
+            -e OHRM_DB_HOST="mariadb" \
+            -e OHRM_DB_PORT="3306" \
+            -e OHRM_DB_NAME="${{ secrets.QA_DB_NAME }}" \
+            -e OHRM_DB_USER="root" \
+            -e OHRM_DB_PASSWORD="${{ secrets.QA_DB_PASSWORD }}" \
+            -e OHRM_ADMIN_USER="admin" \
+            -e OHRM_ADMIN_PASSWORD="AdminPassword123!" \
+            orangehrm bash -c "yes '' | php installer/console install:on-new-database"
 
       - name: Verify OrangeHRM installation status
         run: |
@@ -78,7 +60,8 @@ jobs:
           HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
           echo "Login endpoint HTTP Status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "Installation verification failed!"
+            echo "Installation verification failed! Dumping container logs:"
+            docker compose -f docker-orangehrm/docker-compose.yml logs orangehrm
             exit 1
           fi
 
