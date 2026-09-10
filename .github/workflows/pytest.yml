@@ -42,47 +42,25 @@ jobs:
             done
           "
 
-      - name: Install OrangeHRM via Native CLI
+      - name: Inspect Container Files and Error Logs
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Create Database
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "CREATE DATABASE IF NOT EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
+          echo "=== 1. CHECKING CLI ENTRYPOINTS IN CONTAINER ==="
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm find /var/www/html -maxdepth 3 -name "console" -o -name "calma" -o -name "index.php"
 
-          # 2. Run OrangeHRM 5.x CLI setup
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php symfony/bin/calma orangehrm:install \
-            --db-host=mariadb \
-            --db-port=3306 \
-            --db-name="${{ secrets.QA_DB_NAME }}" \
-            --db-user=root \
-            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
-            --admin-username="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
-            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}" \
-            --no-interaction
+          echo "=== 2. APACHE / PHP ERROR LOGS ==="
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/log/apache2/error.log || true
 
-          # 3. Set required storage permissions
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            chmod -R 777 /var/www/html/src/storage /var/www/html/lib/confs
-          "
+          echo "=== 3. ORANGEHRM SYSTEM LOGS ==="
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/www/html/src/storage/logs/orangehrm.log || true
 
-      - name: Verify OrangeHRM installation status
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: "orangehrm"
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-        run: |
-          echo "Verifying HTTP response code from Login page..."
-          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
-          echo "Login endpoint HTTP Status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "Installation verification failed! Dumping container logs:"
-            docker compose -f docker-orangehrm/docker-compose.yml logs orangehrm
-            exit 1
-          fi
+          echo "=== 4. TEST LOGIN HTTP STATUS ==="
+          curl -I "http://localhost:8080/web/index.php/auth/login" || true
+          exit 1
 
       - name: Install Python dependencies
         run: |
