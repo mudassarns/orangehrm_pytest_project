@@ -23,7 +23,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmariadb-dev
 
-      - name: Install dependencies
+      - name: Start OrangeHRM and MariaDB
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: ${{ secrets.QA_DB_USER }}
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml up -d
+
+      - name: Check Docker services
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml ps
+
+      - name: Wait for OrangeHRM
+        run: |
+          timeout 90s bash -c '
+            until curl -sSf http://localhost:8080 > /dev/null; do
+              echo "Waiting for OrangeHRM..."
+              sleep 5
+            done
+          '
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -38,4 +60,17 @@ jobs:
           QA_DB_NAME: ${{ secrets.QA_DB_NAME }}
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-        run: pytest --browser chrome --headless -v
+        run: |
+          pytest --browser chrome --headless -v
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-reports
+          path: reports/
+
+      - name: Tear down Docker environment
+        if: always()
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml down
