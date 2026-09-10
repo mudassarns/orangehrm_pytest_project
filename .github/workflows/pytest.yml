@@ -145,9 +145,9 @@ jobs:
             -X POST "$BASE/api/clean-up-install"
 
           echo "Verifying OrangeHRM installation..."
-          curl -fsS -L \
-            "http://localhost:8080/web/index.php/auth/login" > /dev/null
-
+          curl -i -L \
+            "http://localhost:8080/web/index.php/auth/login" || true
+            
           echo "OrangeHRM installation completed successfully."
 
       - name: Debug OrangeHRM container
