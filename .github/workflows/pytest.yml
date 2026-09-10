@@ -35,7 +35,11 @@ jobs:
       - name: Wait for MariaDB to be ready
         run: |
           timeout 60s bash -c '
-            until docker exec $(docker ps -qf "name=mariadb") mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent; do
+            CONTAINER_ID=$(docker ps -q -f "ancestor=mariadb:11")
+            if [ -z "$CONTAINER_ID" ]; then
+              CONTAINER_ID=$(docker ps -q -f "name=mariadb")
+            fi
+            until docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p"${{ secrets.QA_DB_PASSWORD }}" --silent; do
               echo "Waiting for MariaDB..."
               sleep 2
             done
