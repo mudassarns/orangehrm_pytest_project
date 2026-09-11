@@ -49,15 +49,33 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Drop database if it exists so the installer creates it fresh without error
+          # 1. Clean DB state
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Feed exact STDIN sequence (License -> Host -> Port -> DB -> User -> Pass -> Same User? -> Encryption?)
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            printf 'yes\nmariadb\n3306\n${{ secrets.QA_DB_NAME }}\nroot\n${{ secrets.QA_DB_PASSWORD }}\nyes\nno\nMyCompany\nUS\n${{ secrets.QA_ORANGEHRM_USERNAME }}\n${{ secrets.QA_ORANGEHRM_PASSWORD }}\n${{ secrets.QA_ORANGEHRM_PASSWORD }}\nyes\n' | php installer/console install:on-new-database
-          "
+          # 2. Run installer completely non-interactively via arguments
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
+            --no-interaction \
+            --accept-license \
+            --db-host=mariadb \
+            --db-port=3306 \
+            --db-name="${{ secrets.QA_DB_NAME }}" \
+            --db-user=root \
+            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
+            --admin-user="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
+            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}" \
+            --organization-name="MyCompany" \
+            --country-code="US" || \
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
+            -n \
+            --db-host=mariadb \
+            --db-port=3306 \
+            --db-name="${{ secrets.QA_DB_NAME }}" \
+            --db-user=root \
+            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
+            --admin-user="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
+            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}"
 
-          # 3. Set required storage permissions
+          # 3. Set required permissions
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             chmod -R 777 /var/www/html/src/storage /var/www/html/lib/confs
           "
