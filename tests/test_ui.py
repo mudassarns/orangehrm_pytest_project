@@ -27,6 +27,7 @@ def test_add_employee(create_employee):
     )
 
     assert result_count == 1
+    assert 1 == 2
 
 
 def test_search_employee_by_id(create_employee):
