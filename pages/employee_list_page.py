@@ -64,79 +64,7 @@ class EmployeeListPage(BasePage):
         super().__init__(driver)
         self.wait_for_visible(self.EMPLOYEE_LIST_TAB)
 
-    # def go_to_add_employee(self):
-    #     self.click(self.ADD_EMPLOYEE_TAB)
-    #     return AddEmployeePage(self.driver)
-
     def go_to_add_employee(self):
-        print("Browser:", self.driver.capabilities.get("browserName"))
-        print("Browser version:", self.driver.capabilities.get("browserVersion"))
-        print("Window size:", self.driver.get_window_size())
-        print("Viewport width:", self.driver.execute_script("return window.innerWidth"))
-
-        nav = self.driver.find_element(
-            By.CSS_SELECTOR,
-            ".oxd-topbar-body-nav"
-        )
-
-        ul = self.driver.find_element(
-            By.CSS_SELECTOR,
-            ".oxd-topbar-body-nav > ul"
-        )
-
-        print("NAV width:", nav.size["width"])
-        print("UL width:", ul.size["width"])
-        print(
-            "UL clientWidth:",
-            self.driver.execute_script(
-                "return arguments[0].clientWidth", ul
-            )
-        )
-        print(
-            "UL scrollWidth:",
-            self.driver.execute_script(
-                "return arguments[0].scrollWidth", ul
-            )
-        )
-
-        items = self.driver.find_elements(
-            By.CSS_SELECTOR,
-            ".oxd-topbar-body-nav > ul > li"
-        )
-
-        for index, item in enumerate(items):
-            print(
-                f"ITEM {index}: "
-                f"text='{item.text}', "
-                f"width={item.size['width']}, "
-                f"displayed={item.is_displayed()}"
-            )
-
-        elements = self.driver.find_elements(
-            By.XPATH,
-            "//span[normalize-space()='More']"
-        )
-
-        print("MORE elements found:", len(elements))
-
-        for index, element in enumerate(elements):
-            print(
-                f"MORE {index}: "
-                f"displayed={element.is_displayed()}, "
-                f"enabled={element.is_enabled()}"
-            )
-
-        import os
-
-        os.makedirs("screenshots", exist_ok=True)
-
-        screenshot_path = "screenshots/ci_before_add_employee.png"
-        saved = self.driver.save_screenshot(screenshot_path)
-
-        print(f"Screenshot saved: {saved}")
-        print(f"Screenshot path: {screenshot_path}")
-        print(f"Screenshot exists: {os.path.exists(screenshot_path)}")
-
         self.click(self.ADD_EMPLOYEE_TAB)
         return AddEmployeePage(self.driver)
 
