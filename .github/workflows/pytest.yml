@@ -46,6 +46,8 @@ jobs:
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           # 1. Clean and create the target database in MariaDB
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
@@ -58,24 +60,14 @@ jobs:
             done
           "
 
-          # 3. Create Conf.php directly
+          # 3. Create Conf.php cleanly using standard echo
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             mkdir -p /var/www/html/lib/confs /var/www/html/src/storage
-            cat << 'EOF' > /var/www/html/lib/confs/Conf.php
-            <?php
-            class Conf {
-                public \$dbhost = 'mariadb';
-                public \$dbport = '3306';
-                public \$dbname = '${{ secrets.QA_DB_NAME }}';
-                public \$dbuser = 'root';
-                public \$dbpass = '${{ secrets.QA_DB_PASSWORD }}';
-                public \$version = '5.9';
-            }
-            EOF
+            echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
             chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
           "
 
-          # 4. Clear cache
+          # 4. Clear cache so Symfony recognizes Conf.php
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             rm -rf /var/www/html/src/storage/cms/* /var/www/html/src/storage/logs/* || true
           "
