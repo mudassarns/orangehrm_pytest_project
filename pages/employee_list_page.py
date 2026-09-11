@@ -69,11 +69,17 @@ class EmployeeListPage(BasePage):
     #     return AddEmployeePage(self.driver)
 
     def go_to_add_employee(self):
+        print("Browser:", self.driver.capabilities.get("browserName"))
+        print("Browser version:", self.driver.capabilities.get("browserVersion"))
+        print("Chrome/Driver:", self.driver.capabilities.get("chrome", {}))
         print("Window size:", self.driver.get_window_size())
         print("Viewport width:", self.driver.execute_script("return window.innerWidth"))
         print("Viewport height:", self.driver.execute_script("return window.innerHeight"))
+        print("Device pixel ratio:", self.driver.execute_script("return window.devicePixelRatio"))
 
-        elements = self.driver.find_elements(By.XPATH, "//span[normalize-space()='More']")
+        elements = self.driver.find_elements(
+            By.XPATH, "//span[normalize-space()='More']"
+        )
         print("MORE elements found:", len(elements))
 
         for index, element in enumerate(elements):
