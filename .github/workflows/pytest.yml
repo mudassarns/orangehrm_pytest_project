@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -46,49 +46,77 @@ jobs:
             done
           "
 
-      - name: Bypass Installer via Direct SQL Restore
+      - name: Install OrangeHRM via official CLI installer
+        timeout-minutes: 7
+        env:
+          QA_DB_NAME: ${{ secrets.QA_DB_NAME }}
+          QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
+          QA_ORANGEHRM_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
+            -e CI_DB_HOST=mariadb \
+            -e CI_DB_PORT=3306 \
+            -e CI_DB_NAME="$QA_DB_NAME" \
+            -e CI_DB_PASSWORD="$QA_DB_PASSWORD" \
+            -e CI_ADMIN_USERNAME="$QA_ORANGEHRM_USERNAME" \
+            -e CI_ADMIN_PASSWORD="$QA_ORANGEHRM_PASSWORD" \
+            orangehrm php -r '
+              require "/var/www/html/src/vendor/autoload.php";
+              $config = [
+                "database" => [
+                  "hostName" => getenv("CI_DB_HOST"),
+                  "hostPort" => 3306,
+                  "databaseName" => getenv("CI_DB_NAME"),
+                  "privilegedDatabaseUser" => "root",
+                  "privilegedDatabasePassword" => getenv("CI_DB_PASSWORD"),
+                  "useSameDbUserForOrangeHRM" => "y",
+                  "orangehrmDatabaseUser" => null,
+                  "orangehrmDatabasePassword" => null,
+                  "isExistingDatabase" => "n",
+                  "enableDataEncryption" => "n"
+                ],
+                "organization" => [
+                  "name" => "Automation CI",
+                  "country" => "US"
+                ],
+                "admin" => [
+                  "adminUserName" => getenv("CI_ADMIN_USERNAME"),
+                  "adminPassword" => getenv("CI_ADMIN_PASSWORD"),
+                  "adminEmployeeFirstName" => "Automation",
+                  "adminEmployeeLastName" => "Admin",
+                  "workEmail" => "automation@example.com",
+                  "contactNumber" => null,
+                  "registrationConsent" => false
+                ],
+                "license" => ["agree" => "y"]
+              ];
+              file_put_contents(
+                "/var/www/html/installer/cli_install_config.yaml",
+                Symfony\Component\Yaml\Yaml::dump($config, 4, 2)
+              );
+            '
+
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
+            orangehrm php /var/www/html/installer/cli_install.php
+
+      - name: Verify OrangeHRM installation
+        timeout-minutes: 2
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: "orangehrm"
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Recreate clean target database inside MariaDB container
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
+          echo "Checking OrangeHRM database tables..."
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
+            mariadb -u root -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" \
+            -e "SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='$MARIADB_DATABASE';"
 
-          # 2. Extract database schema/seed SQL files from orangehrm container into host runner
-          mkdir -p /tmp/ohrm_sql
-          docker compose -f docker-orangehrm/docker-compose.yml cp orangehrm:/var/www/html/installer/dbscript/ /tmp/ohrm_sql/ || true
-          docker compose -f docker-orangehrm/docker-compose.yml cp orangehrm:/var/www/html/installer/structure/ /tmp/ohrm_sql/ || true
-
-          # 3. Import SQL files using the client inside the MARIADB container
-          for sql_file in $(find /tmp/ohrm_sql -type f -name "*.sql" | sort -V); do
-            echo "Importing $sql_file..."
-            docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" "${{ secrets.QA_DB_NAME }}" < "$sql_file" || true
-          done
-
-          # 4. Generate Conf.php and key storage inside orangehrm container
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs /var/www/html/src/storage/key
-            echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
-            echo 'key_data' > /var/www/html/src/storage/key/crypt.key
-            chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
-            rm -rf /var/www/html/src/storage/cms/* /var/www/html/src/storage/logs/* || true
-          "
-
-      - name: Verify OrangeHRM installation status
-        env:
-          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: "orangehrm"
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
-        run: |
-          echo "Verifying HTTP response code from Login page..."
+          echo "Checking OrangeHRM login endpoint..."
           HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
-          echo "Login endpoint HTTP Status: $HTTP_STATUS"
+          echo "Login endpoint HTTP status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "=== APACHE ERROR LOGS ==="
-            docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/log/apache2/error.log || true
+            echo "=== ORANGEHRM CONTAINER LOGS ==="
+            docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 orangehrm || true
             exit 1
           fi
 
