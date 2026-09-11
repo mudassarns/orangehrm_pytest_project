@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -19,11 +20,13 @@ jobs:
           python-version: "3.14.6"
 
       - name: Install system dependencies for MariaDB
+        timeout-minutes: 3
         run: |
           sudo apt-get update
           sudo apt-get install -y libmariadb-dev
 
       - name: Start Docker Stack for CI
+        timeout-minutes: 5
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ""
@@ -33,6 +36,7 @@ jobs:
           docker compose -f docker-orangehrm/docker-compose.yml up -d
 
       - name: Wait for MariaDB to be ready
+        timeout-minutes: 2
         run: |
           CONTAINER_ID=$(docker ps -q -f "name=mariadb")
           timeout 60s bash -c "
@@ -43,6 +47,7 @@ jobs:
           "
 
       - name: Bypass Installer via Direct SQL Restore
+        timeout-minutes: 3
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
@@ -52,18 +57,16 @@ jobs:
           # 1. Clean and recreate database
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Seed database directly using OrangeHRM internal SQL scripts
+          # 2. Directly import the master database script (Non-blocking direct stream)
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            for sql_file in \$(ls /var/www/html/installer/dbscript/dbscript-*.sql 2>/dev/null | sort -V); do
-              echo \"Importing \$sql_file...\"
-              mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < \"\$sql_file\"
-            done
+            mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < /var/www/html/installer/dbscript/dbscript-1.sql
           "
 
-          # 3. Create Conf.php cleanly
+          # 3. Create Conf.php, crypt.key, and ensure storage directory permissions
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs
+            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs /var/www/html/src/storage/key
             echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
+            echo 'key_data' > /var/www/html/src/storage/key/crypt.key
             chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
           "
 
@@ -74,6 +77,7 @@ jobs:
           "
 
       - name: Verify OrangeHRM installation status
+        timeout-minutes: 2
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
@@ -81,22 +85,31 @@ jobs:
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           echo "Verifying HTTP response code from Login page..."
-          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
-          echo "Login endpoint HTTP Status: $HTTP_STATUS"
+          # Retry loop with a max 30-second window so transient startup delays don't hang or crash instantly
+          HTTP_STATUS=0
+          for i in {1..10}; do
+            HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 5 "http://localhost:8080/web/index.php/auth/login" || echo "000")
+            echo "Attempt $i: HTTP Status $HTTP_STATUS"
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              break
+            fi
+            sleep 3
+          done
+
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "=== ORANGEHRM SYSTEM LOGS ==="
-            docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/www/html/src/storage/logs/orangehrm.log || true
             echo "=== APACHE ERROR LOGS ==="
             docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/log/apache2/error.log || true
             exit 1
           fi
 
       - name: Install Python dependencies
+        timeout-minutes: 3
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run single pytest verification
+        timeout-minutes: 5
         env:
           QA_ORANGEHRM_BASE_URL: ${{ secrets.QA_ORANGEHRM_BASE_URL }}
           QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
@@ -121,6 +134,7 @@ jobs:
 
       - name: Tear down Docker Stack
         if: always()
+        timeout-minutes: 2
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
