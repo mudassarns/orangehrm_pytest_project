@@ -31,4 +31,17 @@ class BrowserFactory:
                 options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--window-size=1920,1080")
 
-        return driver_cls(options=options)
+        driver = driver_cls(options=options)
+
+        if browser == "chrome" and headless:
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 1920,
+                    "height": 1080,
+                    "deviceScaleFactor": 1,
+                    "mobile": False,
+                },
+            )
+
+        return driver
