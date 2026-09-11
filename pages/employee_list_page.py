@@ -71,15 +71,52 @@ class EmployeeListPage(BasePage):
     def go_to_add_employee(self):
         print("Browser:", self.driver.capabilities.get("browserName"))
         print("Browser version:", self.driver.capabilities.get("browserVersion"))
-        print("Chrome/Driver:", self.driver.capabilities.get("chrome", {}))
         print("Window size:", self.driver.get_window_size())
         print("Viewport width:", self.driver.execute_script("return window.innerWidth"))
-        print("Viewport height:", self.driver.execute_script("return window.innerHeight"))
-        print("Device pixel ratio:", self.driver.execute_script("return window.devicePixelRatio"))
+
+        nav = self.driver.find_element(
+            By.CSS_SELECTOR,
+            ".oxd-topbar-body-nav"
+        )
+
+        ul = self.driver.find_element(
+            By.CSS_SELECTOR,
+            ".oxd-topbar-body-nav > ul"
+        )
+
+        print("NAV width:", nav.size["width"])
+        print("UL width:", ul.size["width"])
+        print(
+            "UL clientWidth:",
+            self.driver.execute_script(
+                "return arguments[0].clientWidth", ul
+            )
+        )
+        print(
+            "UL scrollWidth:",
+            self.driver.execute_script(
+                "return arguments[0].scrollWidth", ul
+            )
+        )
+
+        items = self.driver.find_elements(
+            By.CSS_SELECTOR,
+            ".oxd-topbar-body-nav > ul > li"
+        )
+
+        for index, item in enumerate(items):
+            print(
+                f"ITEM {index}: "
+                f"text='{item.text}', "
+                f"width={item.size['width']}, "
+                f"displayed={item.is_displayed()}"
+            )
 
         elements = self.driver.find_elements(
-            By.XPATH, "//span[normalize-space()='More']"
+            By.XPATH,
+            "//span[normalize-space()='More']"
         )
+
         print("MORE elements found:", len(elements))
 
         for index, element in enumerate(elements):
