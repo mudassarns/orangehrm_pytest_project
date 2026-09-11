@@ -125,8 +125,13 @@ class EmployeeListPage(BasePage):
                 f"displayed={element.is_displayed()}, "
                 f"enabled={element.is_enabled()}"
             )
-        self.driver.save_screenshot("screenshots/ci_before_add_employee.png")
-        print("Screenshot saved: ci_before_add_employee.png")
+
+        screenshot_path = "screenshots/ci_before_add_employee.png"
+        saved = self.driver.save_screenshot(screenshot_path)
+
+        print(f"Screenshot saved: {saved}")
+        print(f"Screenshot path: {screenshot_path}")
+
         self.click(self.ADD_EMPLOYEE_TAB)
         return AddEmployeePage(self.driver)
 
