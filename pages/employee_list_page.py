@@ -64,8 +64,24 @@ class EmployeeListPage(BasePage):
         super().__init__(driver)
         self.wait_for_visible(self.EMPLOYEE_LIST_TAB)
 
+    # def go_to_add_employee(self):
+    #     self.click(self.ADD_EMPLOYEE_TAB)
+    #     return AddEmployeePage(self.driver)
+
     def go_to_add_employee(self):
-        print(self.driver.find_element(By.XPATH, "//span[normalize-space()='More']").is_displayed())
+        print("Window size:", self.driver.get_window_size())
+        print("Viewport width:", self.driver.execute_script("return window.innerWidth"))
+        print("Viewport height:", self.driver.execute_script("return window.innerHeight"))
+
+        elements = self.driver.find_elements(By.XPATH, "//span[normalize-space()='More']")
+        print("MORE elements found:", len(elements))
+
+        for index, element in enumerate(elements):
+            print(
+                f"MORE {index}: "
+                f"displayed={element.is_displayed()}, "
+                f"enabled={element.is_enabled()}"
+            )
 
         self.click(self.ADD_EMPLOYEE_TAB)
         return AddEmployeePage(self.driver)
