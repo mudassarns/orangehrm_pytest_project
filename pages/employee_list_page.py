@@ -65,6 +65,8 @@ class EmployeeListPage(BasePage):
         self.wait_for_visible(self.EMPLOYEE_LIST_TAB)
 
     def go_to_add_employee(self):
+        print(self.driver.find_element(By.XPATH, "//span[normalize-space()='More']").is_displayed())
+
         self.click(self.ADD_EMPLOYEE_TAB)
         return AddEmployeePage(self.driver)
 
