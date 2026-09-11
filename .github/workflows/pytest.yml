@@ -56,12 +56,19 @@ jobs:
           # 1. Clean and recreate database on MariaDB service
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Direct import of base schema using mysql client inside orangehrm container
+          # 2. Locate and import all available base database SQL files in OrangeHRM
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            mysql -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < /var/www/html/installer/dbscript/dbscript-1.sql
+            DBSCRIPT_PATH=\$(find /var/www/html/installer -name \"*.sql\" | grep -E \"dbscript|schema|data\" | head -n 1)
+            if [ -n \"\$DBSCRIPT_PATH\" ]; then
+              echo \"Found SQL script at: \$DBSCRIPT_PATH\"
+              mysql -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < \"\$DBSCRIPT_PATH\"
+            else
+              echo \"Finding all SQL files to seed...\"
+              find /var/www/html/installer -name \"*.sql\" -exec mysql -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' \;
+            fi
           "
 
-          # 3. Create Conf.php and setup storage directories + encryption key
+          # 3. Write Conf.php and setup storage directories + encryption key
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs /var/www/html/src/storage/key
             echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
@@ -76,7 +83,6 @@ jobs:
           "
 
       - name: Verify OrangeHRM installation status
-        timeout-minutes: 2
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
@@ -84,17 +90,8 @@ jobs:
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           echo "Verifying HTTP response code from Login page..."
-          # Retry loop with a max 30-second window so transient startup delays don't hang or crash instantly
-          HTTP_STATUS=0
-          for i in {1..10}; do
-            HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 5 "http://localhost:8080/web/index.php/auth/login" || echo "000")
-            echo "Attempt $i: HTTP Status $HTTP_STATUS"
-            if [ "$HTTP_STATUS" -eq 200 ]; then
-              break
-            fi
-            sleep 3
-          done
-
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
+          echo "Login endpoint HTTP Status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -ne 200 ]; then
             echo "=== APACHE ERROR LOGS ==="
             docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/log/apache2/error.log || true
