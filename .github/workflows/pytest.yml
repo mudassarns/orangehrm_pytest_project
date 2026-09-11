@@ -49,7 +49,7 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Clean and create the target database in MariaDB
+          # 1. Clean and recreate database
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
 
           # 2. Seed database directly using OrangeHRM internal SQL scripts
@@ -60,16 +60,17 @@ jobs:
             done
           "
 
-          # 3. Create Conf.php cleanly using standard echo
+          # 3. Create Conf.php cleanly
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage
+            mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs
             echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
             chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
           "
 
-          # 4. Clear cache so Symfony recognizes Conf.php
+          # 4. Clear cache and trigger doctrine/symfony warm up
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             rm -rf /var/www/html/src/storage/cms/* /var/www/html/src/storage/logs/* || true
+            chmod -R 777 /var/www/html/src/storage
           "
 
       - name: Verify OrangeHRM installation status
@@ -83,8 +84,10 @@ jobs:
           HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
           echo "Login endpoint HTTP Status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "Installation verification failed! Dumping container logs:"
-            docker compose -f docker-orangehrm/docker-compose.yml logs orangehrm
+            echo "=== ORANGEHRM SYSTEM LOGS ==="
+            docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/www/html/src/storage/logs/orangehrm.log || true
+            echo "=== APACHE ERROR LOGS ==="
+            docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm cat /var/log/apache2/error.log || true
             exit 1
           fi
 
