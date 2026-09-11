@@ -42,40 +42,73 @@ jobs:
             done
           "
 
-      - name: Install OrangeHRM via Installer Console
+      - name: Install OrangeHRM via Expect Script
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Clean DB state
+          # 1. Install expect tool on runner
+          sudo apt-get update && sudo apt-get install -y expect
+
+          # 2. Reset database
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Run installer completely non-interactively via arguments
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
-            --no-interaction \
-            --accept-license \
-            --db-host=mariadb \
-            --db-port=3306 \
-            --db-name="${{ secrets.QA_DB_NAME }}" \
-            --db-user=root \
-            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
-            --admin-user="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
-            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}" \
-            --organization-name="MyCompany" \
-            --country-code="US" || \
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database \
-            -n \
-            --db-host=mariadb \
-            --db-port=3306 \
-            --db-name="${{ secrets.QA_DB_NAME }}" \
-            --db-user=root \
-            --db-password="${{ secrets.QA_DB_PASSWORD }}" \
-            --admin-user="${{ secrets.QA_ORANGEHRM_USERNAME }}" \
-            --admin-password="${{ secrets.QA_ORANGEHRM_PASSWORD }}"
+          # 3. Create expect script to drive installer/console prompts cleanly
+          cat << 'EOF' > install.exp
+          set timeout 300
+          spawn docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm php installer/console install:on-new-database
 
-          # 3. Set required permissions
+          expect "License Agreement"
+          send "yes\r"
+
+          expect "Database Host Name"
+          send "mariadb\r"
+
+          expect "Database Host Port"
+          send "3306\r"
+
+          expect "Database Name"
+          send "${{ secrets.QA_DB_NAME }}\r"
+
+          expect "Privileged Database Username"
+          send "root\r"
+
+          expect "Privileged Database User Password"
+          send "${{ secrets.QA_DB_PASSWORD }}\r"
+
+          expect "Use the same"
+          send "yes\r"
+
+          expect "Enable Data Encryption"
+          send "no\r"
+
+          expect "Organization Name"
+          send "MyCompany\r"
+
+          expect "Country"
+          send "United States\t\r"
+
+          expect "Admin Username"
+          send "${{ secrets.QA_ORANGEHRM_USERNAME }}\r"
+
+          expect "Admin Password"
+          send "${{ secrets.QA_ORANGEHRM_PASSWORD }}\r"
+
+          expect "Confirm Password"
+          send "${{ secrets.QA_ORANGEHRM_PASSWORD }}\r"
+
+          expect "Confirm Installation"
+          send "yes\r"
+
+          expect eof
+          EOF
+
+          # 4. Execute expect installer
+          expect install.exp
+
+          # 5. Fix storage and config permissions
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             chmod -R 777 /var/www/html/src/storage /var/www/html/lib/confs
           "
