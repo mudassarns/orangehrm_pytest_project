@@ -117,7 +117,8 @@ def dashboard(driver, auth_cookie):
     page = BasePage(driver)
 
     # Remove any orangehrm cookies created when visiting the site
-    driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
+    # driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
+    # driver.delete_cookie(auth_cookie["cookie"]["name"])
 
     # Restore cached authentication cookie
     page.restore_cookie(auth_cookie["cookie"])
@@ -129,7 +130,8 @@ def dashboard(driver, auth_cookie):
         print("\nCookie authentication failed")
 
         # Start a completely clean session
-        driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
+        # driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
+        driver.delete_cookie(auth_cookie["cookie"]["name"])
 
         # Load the login page with a fresh session
         driver.get(Config.get("ORANGEHRM_BASE_URL"))
