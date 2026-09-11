@@ -47,7 +47,6 @@ jobs:
           "
 
       - name: Bypass Installer via Direct SQL Restore
-        timeout-minutes: 3
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
@@ -57,12 +56,15 @@ jobs:
           # 1. Clean and recreate database
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Directly import the master database script (Non-blocking direct stream)
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            mariadb -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < /var/www/html/installer/dbscript/dbscript-1.sql
-          "
+          # 2. Dynamically locate and import all SQL scripts found in the installer directory
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c '
+            for sql_file in $(find /var/www/html/installer -name "*.sql" | sort -V); do
+              echo "Importing $sql_file..."
+              mariadb -h mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" "${MARIADB_DATABASE}" < "$sql_file"
+            done
+          '
 
-          # 3. Create Conf.php, crypt.key, and ensure storage directory permissions
+          # 3. Write Conf.php and setup storage directories + required encryption key
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs /var/www/html/src/storage/key
             echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
@@ -70,7 +72,7 @@ jobs:
             chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
           "
 
-          # 4. Clear cache and trigger doctrine/symfony warm up
+          # 4. Clear cache directories
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             rm -rf /var/www/html/src/storage/cms/* /var/www/html/src/storage/logs/* || true
             chmod -R 777 /var/www/html/src/storage
