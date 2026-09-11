@@ -138,7 +138,7 @@ jobs:
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          pytest tests/test_api.py::test_get_employees --browser chrome --headless -v -s -p no:rerunfailures
+          pytest tests/test_ui.py::test_add_employee --browser chrome --headless -v -s -p no:rerunfailures
 
       - name: Upload Test Reports & Screenshots
         if: always()

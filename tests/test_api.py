@@ -10,7 +10,6 @@ def test_get_employees(orangehrm_api):
     data = response.json()
 
     assert data["meta"]["total"] >= 1
-    assert 1 == 2
 
 def test_get_employees_with_limit(orangehrm_api):
     response = orangehrm_api.get_employees(limit=1)
