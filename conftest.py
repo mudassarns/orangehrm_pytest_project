@@ -40,20 +40,21 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
 
-    if report.when == "call" and report.failed:
+    if report.when in ("setup", "call") and report.failed:
         driver = item.funcargs.get("driver")
 
         if driver:
             logger.error(
-            f"TEST FAILED: {item.name} | "
-            f"ERROR: {call.excinfo.value}"
+                f"TEST FAILED: {item.name} | "
+                f"PHASE: {report.when} | "
+                f"ERROR: {call.excinfo.value}"
             )
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             capture_failure_screenshot(
-            driver,
-            f"reports/screenshots/{item.name}_{timestamp}.png"
+                driver,
+                f"reports/screenshots/{item.name}_{report.when}_{timestamp}.png"
             )
 
 
