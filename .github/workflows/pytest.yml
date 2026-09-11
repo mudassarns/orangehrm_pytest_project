@@ -53,33 +53,27 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          # 1. Clean and recreate database on MariaDB service
+          # 1. Recreate clean target database inside MariaDB container
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" -e "DROP DATABASE IF EXISTS \`${{ secrets.QA_DB_NAME }}\`; CREATE DATABASE \`${{ secrets.QA_DB_NAME }}\`;"
 
-          # 2. Locate and import all available base database SQL files in OrangeHRM
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
-            DBSCRIPT_PATH=\$(find /var/www/html/installer -name \"*.sql\" | grep -E \"dbscript|schema|data\" | head -n 1)
-            if [ -n \"\$DBSCRIPT_PATH\" ]; then
-              echo \"Found SQL script at: \$DBSCRIPT_PATH\"
-              mysql -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' < \"\$DBSCRIPT_PATH\"
-            else
-              echo \"Finding all SQL files to seed...\"
-              find /var/www/html/installer -name \"*.sql\" -exec mysql -h mariadb -u root -p'${{ secrets.QA_DB_PASSWORD }}' '${{ secrets.QA_DB_NAME }}' \;
-            fi
-          "
+          # 2. Extract database schema/seed SQL files from orangehrm container into host runner
+          mkdir -p /tmp/ohrm_sql
+          docker compose -f docker-orangehrm/docker-compose.yml cp orangehrm:/var/www/html/installer/dbscript/ /tmp/ohrm_sql/ || true
+          docker compose -f docker-orangehrm/docker-compose.yml cp orangehrm:/var/www/html/installer/structure/ /tmp/ohrm_sql/ || true
 
-          # 3. Write Conf.php and setup storage directories + encryption key
+          # 3. Import SQL files using the client inside the MARIADB container
+          for sql_file in $(find /tmp/ohrm_sql -type f -name "*.sql" | sort -V); do
+            echo "Importing $sql_file..."
+            docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" "${{ secrets.QA_DB_NAME }}" < "$sql_file" || true
+          done
+
+          # 4. Generate Conf.php and key storage inside orangehrm container
           docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             mkdir -p /var/www/html/lib/confs /var/www/html/src/storage/cms /var/www/html/src/storage/logs /var/www/html/src/storage/key
             echo '<?php class Conf { public \$dbhost = \"mariadb\"; public \$dbport = \"3306\"; public \$dbname = \"${{ secrets.QA_DB_NAME }}\"; public \$dbuser = \"root\"; public \$dbpass = \"${{ secrets.QA_DB_PASSWORD }}\"; public \$version = \"5.9\"; }' > /var/www/html/lib/confs/Conf.php
             echo 'key_data' > /var/www/html/src/storage/key/crypt.key
             chmod -R 777 /var/www/html/lib/confs /var/www/html/src/storage
-          "
-
-          # 4. Clear cache directories
-          docker compose -f docker-orangehrm/docker-compose.yml exec -T orangehrm bash -c "
             rm -rf /var/www/html/src/storage/cms/* /var/www/html/src/storage/logs/* || true
-            chmod -R 777 /var/www/html/src/storage
           "
 
       - name: Verify OrangeHRM installation status
