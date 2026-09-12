@@ -26,10 +26,19 @@ def test_get_employees_with_offset(orangehrm_api):
 
     assert first_response.status_code == 200
     assert second_response.status_code == 200
+    print("\nOFFSET TEST")
+    print("FIRST URL:", first_response.url)
+    print("FIRST STATUS:", first_response.status_code)
+    print("FIRST BODY:", first_response.json())
+    print("SECOND URL:", second_response.url)
+    print("SECOND STATUS:", second_response.status_code)
+    print("SECOND BODY:", second_response.json())
 
     first_data = first_response.json()
     second_data = second_response.json()
-
+    print("\nFIRST RESPONSE:", first_data)
+    print("SECOND RESPONSE:", second_data)
+    
     assert len(first_data["data"]) == 1
     assert len(second_data["data"]) == 1
 
