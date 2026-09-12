@@ -138,7 +138,11 @@ jobs:
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          pytest tests --headless -v -s
+          echo "DB_HOST is configured: ${QA_DB_HOST:+yes}"
+          echo "DB_PORT is configured: ${QA_DB_PORT:+yes}"
+          echo "DB_NAME is configured: ${QA_DB_NAME:+yes}"
+          echo "DB_USER is configured: ${QA_DB_USER:+yes}"
+          pytest tests/test_database.py --headless -v -s
 
       - name: Upload Test Reports & Screenshots
         if: always()
