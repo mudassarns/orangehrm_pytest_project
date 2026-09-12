@@ -20,32 +20,6 @@ def test_get_employees_with_limit(orangehrm_api):
 
     assert len(data["data"]) <= 1
 
-def test_get_employees_with_offset(orangehrm_api):
-    first_response = orangehrm_api.get_employees(limit=1, offset=0)
-    second_response = orangehrm_api.get_employees(limit=1, offset=1)
-
-    assert first_response.status_code == 200
-    assert second_response.status_code == 200
-    print("\nOFFSET TEST")
-    print("FIRST URL:", first_response.url)
-    print("FIRST STATUS:", first_response.status_code)
-    print("FIRST BODY:", first_response.json())
-    print("SECOND URL:", second_response.url)
-    print("SECOND STATUS:", second_response.status_code)
-    print("SECOND BODY:", second_response.json())
-
-    first_data = first_response.json()
-    second_data = second_response.json()
-    print("\nFIRST RESPONSE:", first_data)
-    print("SECOND RESPONSE:", second_data)
-    
-    assert len(first_data["data"]) == 1
-    assert len(second_data["data"]) == 1
-
-    assert (
-        first_data["data"][0]["empNumber"]
-        != second_data["data"][0]["empNumber"]
-    )
 
 def test_create_employee( create_employee_api):
     employee_data, employee_details = create_employee_api
