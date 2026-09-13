@@ -6,10 +6,9 @@ from utils.test_data import generate_employee_data
 from pages.dashboard_page import DashboardPage
 from api.orangehrm_api import OrangeHRMApi
 from utils.logger import get_logger
-from utils.screenshot import capture_failure_screenshot
 from db.database_client import DatabaseClient
 from utils.browser_factory import BrowserFactory
-from utils.reporting import attach_failure_screenshot
+from utils.screenshot import attach_failure_screenshot
 
 
 logger = get_logger(__name__)
