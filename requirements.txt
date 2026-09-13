@@ -6,4 +6,4 @@ pytest-rerunfailures==16.6.1
 python-dotenv==1.2.3
 mariadb==1.1.14
 Pillow==12.3.0
-pytest-rerunfailures
+pytest-html

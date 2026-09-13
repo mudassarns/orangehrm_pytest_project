@@ -10,6 +10,8 @@ from datetime import datetime
 from utils.screenshot import capture_failure_screenshot
 from db.database_client import DatabaseClient
 from utils.browser_factory import BrowserFactory
+from pytest_html import extras
+
 
 logger = get_logger(__name__)
 
@@ -52,10 +54,31 @@ def pytest_runtest_makereport(item, call):
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+            screenshot_filename = (
+                f"{item.name}_{report.when}_{timestamp}.png"
+            )
+
+            screenshot_path = (
+                f"reports/screenshots/{screenshot_filename}"
+            )
+
+            # Save screenshot file for CI/local artifacts
             capture_failure_screenshot(
                 driver,
-                f"reports/screenshots/{item.name}_{report.when}_{timestamp}.png"
+                screenshot_path
             )
+
+            # Attach screenshot to pytest-html report
+            report_extras = getattr(report, "extras", [])
+
+            report_extras.append(
+                extras.image(
+                    f"screenshots/{screenshot_filename}",
+                    name="Failure Screenshot"
+                )
+            )
+
+            report.extras = report_extras
 
 
 @pytest.fixture(scope="session", autouse=True)
