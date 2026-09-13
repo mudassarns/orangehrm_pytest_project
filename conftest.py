@@ -62,10 +62,11 @@ def pytest_runtest_makereport(item, call):
             report_extras = getattr(report, "extras", [])
 
             report_extras.append(
-                extras.image(
-                    screenshot_base64,
-                    mime_type="image/png",
-                    name="Failure Screenshot"
+                extras.html(
+                    f'<img src="data:image/png;base64,{screenshot_base64}" '
+                    'alt="Failure Screenshot" '
+                    'style="max-width: 100%; cursor: pointer;" '
+                    'onclick="window.open(this.src)">'
                 )
             )
 
