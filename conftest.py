@@ -11,6 +11,7 @@ from utils.screenshot import capture_failure_screenshot
 from db.database_client import DatabaseClient
 from utils.browser_factory import BrowserFactory
 from pytest_html import extras
+import base64
 
 
 logger = get_logger(__name__)
@@ -52,28 +53,18 @@ def pytest_runtest_makereport(item, call):
                 f"ERROR: {call.excinfo.value}"
             )
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_bytes = capture_failure_screenshot(driver)
 
-            screenshot_filename = (
-                f"{item.name}_{report.when}_{timestamp}.png"
-            )
+            screenshot_base64 = base64.b64encode(
+                screenshot_bytes
+            ).decode("utf-8")
 
-            screenshot_path = (
-                f"reports/screenshots/{screenshot_filename}"
-            )
-
-            # Save screenshot file for CI/local artifacts
-            capture_failure_screenshot(
-                driver,
-                screenshot_path
-            )
-
-            # Attach screenshot to pytest-html report
             report_extras = getattr(report, "extras", [])
 
             report_extras.append(
                 extras.image(
-                    f"screenshots/{screenshot_filename}",
+                    screenshot_base64,
+                    mime_type="image/png",
                     name="Failure Screenshot"
                 )
             )
