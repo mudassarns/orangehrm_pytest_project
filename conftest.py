@@ -6,12 +6,10 @@ from utils.test_data import generate_employee_data
 from pages.dashboard_page import DashboardPage
 from api.orangehrm_api import OrangeHRMApi
 from utils.logger import get_logger
-from datetime import datetime
 from utils.screenshot import capture_failure_screenshot
 from db.database_client import DatabaseClient
 from utils.browser_factory import BrowserFactory
-from pytest_html import extras
-import base64
+from utils.reporting import attach_failure_screenshot
 
 
 logger = get_logger(__name__)
@@ -53,23 +51,7 @@ def pytest_runtest_makereport(item, call):
                 f"ERROR: {call.excinfo.value}"
             )
 
-            screenshot_bytes = capture_failure_screenshot(driver)
-
-            screenshot_base64 = base64.b64encode(
-                screenshot_bytes
-            ).decode("utf-8")
-
-            report_extras = getattr(report, "extras", [])
-
-            report_extras.append(
-                extras.image(
-                    screenshot_base64,
-                    mime_type="image/png",
-                    name="Failure Screenshot"
-                )
-            )
-
-            report.extras = report_extras
+            attach_failure_screenshot(report, driver)
 
 
 @pytest.fixture(scope="session", autouse=True)
