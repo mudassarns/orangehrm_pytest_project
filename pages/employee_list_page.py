@@ -2,13 +2,12 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-
 from pages.base_page import BasePage
 from pages.add_employee_page import AddEmployeePage
 from pages.employee_details_page import EmployeeDetailsPage
 from utils.locator_utils import LocatorUtils
 from utils.logger import get_logger
+from selenium.common.exceptions import (StaleElementReferenceException)
 
 logger = get_logger(__name__)
 
@@ -23,6 +22,13 @@ class EmployeeListPage(BasePage):
     ADD_EMPLOYEE_TAB = (
         By.XPATH,
         "//a[normalize-space()='Add Employee']"
+    )
+
+    EMPLOYEE_INFORMATION_TOGGLE = (
+        By.XPATH,
+        "//h5[normalize-space()='Employee Information']"
+        "/ancestor::div[contains(@class,'oxd-table-filter-header')]"
+        "//button"
     )
 
     SEARCH_BUTTON = (
@@ -63,20 +69,17 @@ class EmployeeListPage(BasePage):
         return AddEmployeePage(self.driver)
 
     def search_employee_by_id(self, employee_id):
+        self.ensure_employee_information_expanded()
         employee_id_locator = LocatorUtils.input_by_label("Employee Id")
+        logger.info(f"SEARCH START: Employee {employee_id}")
 
         self.enter_text(employee_id_locator, employee_id)
         self.click(self.SEARCH_BUTTON)
 
-        employee_locator = (
-            By.XPATH,
-            f"//div[@role='cell'][normalize-space()='{employee_id}']"
-        )
-
         WebDriverWait(self.driver, 15).until(
             lambda driver:
-                len(driver.find_elements(*employee_locator)) > 0
-                or len(driver.find_elements(*self.NO_RECORDS_FOUND)) > 0
+            self.is_employee_present(employee_id)
+            or driver.find_elements(*self.NO_RECORDS_FOUND)
         )
 
         result_count = self.get_result_count()
@@ -101,17 +104,22 @@ class EmployeeListPage(BasePage):
         )
 
     def is_employee_present(self, employee_id):
-        locator = (
-            By.XPATH,
-            f"//div[@role='cell'][normalize-space()='{employee_id}']"
-        )
-
         try:
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located(locator)
+            cells = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                "[role='cell']"
             )
-            return True
-        except TimeoutException:
+
+            for cell in cells:
+                if cell.find_elements(
+                    By.XPATH,
+                    f".//div[normalize-space()='{employee_id}']"
+                ):
+                    return True
+
+            return False
+
+        except StaleElementReferenceException:
             return False
 
     def get_first_result_text(self):
@@ -125,4 +133,14 @@ class EmployeeListPage(BasePage):
     def delete_first_employee(self):
         self.click(self.DELETE_EMPLOYEE_BUTTON)
         self.click(self.CONFIRM_DELETE_BUTTON)
-        
+
+
+    def ensure_employee_information_expanded(self):
+        filter_area = WebDriverWait(self.driver, 10).until(
+        EC.presence_of_element_located(
+        (By.CSS_SELECTOR, ".oxd-table-filter-area")
+            )   
+        )
+
+        if filter_area.value_of_css_property("display") == "none":
+            self.click(self.EMPLOYEE_INFORMATION_TOGGLE)

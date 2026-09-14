@@ -17,12 +17,10 @@ env/
 
 # Test reports and generated screenshots
 reports/
-screenshots/
 
 # Coverage
 .coverage
 htmlcov/
-.pytest_cache/
 
 # VS Code
 .vscode/

@@ -17,6 +17,7 @@ class DashboardPage(BasePage):
             return False
 
     def go_to_pim(self):
+        self.ensure_sidepanel_expanded()
         self.click(self.PIM_MENU)
         return EmployeeListPage(self.driver)
     
