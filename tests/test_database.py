@@ -14,7 +14,6 @@ def test_employee_exists(db):
     result = db.fetch_one()
 
     assert result is not None
-    print(result)
     assert result["employee_id"] == employee_id
 
 
@@ -46,13 +45,9 @@ def test_fetch_all_employees(db):
     )
 
     results = db.fetch_all()
-    print(results)
-
-    for row in results:
-        employee_id = row["employee_id"]
-        print(employee_id)
 
     assert results
+    assert all(row["employee_id"] for row in results)
 
 
 def test_fetch_one_employee(db):

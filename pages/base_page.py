@@ -6,6 +6,9 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     ElementClickInterceptedException
 )
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class BasePage:
@@ -88,7 +91,7 @@ class BasePage:
         self.driver.delete_cookie(cookie["name"])
         self.driver.add_cookie(cookie)
         self.driver.refresh()
-        print("SESSION COOKIE RESTORED")
+        logger.info("SESSION COOKIE RESTORED")
 
     def ensure_sidepanel_expanded(self):
         sidepanel = WebDriverWait(self.driver, 10).until(

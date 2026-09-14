@@ -86,9 +86,6 @@ def auth_cookie(request):
 
     driver.get(Config.get("ORANGEHRM_BASE_URL"))
 
-    print(f"Current URL: {driver.current_url}")
-    print(f"Page title: {driver.title}")
-
     login_page = LoginPage(driver)
     dashboard = login_page.login(
         Config.get("ORANGEHRM_USERNAME"),
@@ -122,7 +119,7 @@ def dashboard(driver, auth_cookie):
 
     if not dashboard.is_dashboard_displayed():
 
-        print("\nCookie authentication failed")
+        logger.info("\nCookie authentication failed")
 
         # Start a completely clean session
         # driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
