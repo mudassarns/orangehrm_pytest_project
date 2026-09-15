@@ -10,6 +10,9 @@ jobs:
     name: Running OrangeHRM-demo Tests
     runs-on: ubuntu-latest
 
+    env:
+      QA_ORANGEHRM_BASE_URL: ${{ secrets.QA_ORANGEHRM_BASE_URL }}
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
