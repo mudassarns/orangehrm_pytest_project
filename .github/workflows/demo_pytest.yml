@@ -14,6 +14,11 @@ jobs:
       QA_ORANGEHRM_BASE_URL: ${{ secrets.QA_ORANGEHRM_BASE_URL }}
       QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
       QA_ORANGEHRM_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
+      QA_DB_HOST: ${{ secrets.QA_DB_HOST }}
+      QA_DB_PORT: ${{ secrets.QA_DB_PORT }}
+      QA_DB_NAME: ${{ secrets.QA_DB_NAME }}
+      QA_DB_USER: ${{ secrets.QA_DB_USER }}
+      QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
 
     steps:
       - name: Check out repository
