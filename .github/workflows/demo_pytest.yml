@@ -38,3 +38,13 @@ jobs:
           name: chromedriver-logs
           path: logs/
           retention-days: 7
+
+      - name: Upload Test Reports & Screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-artifacts
+          path: |
+            reports/
+            screenshots/
+          retention-days: 7
