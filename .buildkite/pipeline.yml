@@ -4,9 +4,9 @@ steps:
       docker run --rm python:3.14.6 python --version
 
 steps:
-  - label: "Install dependencies"
+  - label: "Install Python dependencies"
     command: |
       sudo apt-get update -y
-      sudo apt-get install -y libmariadb-dev
+      sudo apt-get install -y libmariadb-dev python3.10-dev
       python3 --version
       python3 -m pip install -r requirements.txt
