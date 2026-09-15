@@ -22,14 +22,106 @@ jobs:
         with:
           python-version: '3.14.6'
 
-      - name: Start OrangeHRM
-        run: |
-          docker compose -f docker-orangehrm/docker-compose.yml up -d
-
       - name: Install MariaDB build dependency
         run: |
           sudo apt-get update -y
           sudo apt-get install -y libmariadb-dev
+
+      - name: Start Docker Stack for CI
+        timeout-minutes: 5
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ""
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml up -d
+
+      - name: Wait for MariaDB to be ready
+        timeout-minutes: 2
+        run: |
+          CONTAINER_ID=$(docker ps -q -f "name=mariadb")
+          timeout 60s bash -c "
+            until docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p\"${{ secrets.QA_DB_PASSWORD }}\" --silent 2>/dev/null; do
+              echo 'Waiting for MariaDB...'
+              sleep 2
+            done
+          "
+
+      - name: Install OrangeHRM via official CLI installer
+        timeout-minutes: 7
+        env:
+          QA_DB_NAME: ${{ secrets.QA_DB_NAME }}
+          QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
+          QA_ORANGEHRM_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
+            -e CI_DB_HOST=mariadb \
+            -e CI_DB_PORT=3306 \
+            -e CI_DB_NAME="$QA_DB_NAME" \
+            -e CI_DB_PASSWORD="$QA_DB_PASSWORD" \
+            -e CI_ADMIN_USERNAME="$QA_ORANGEHRM_USERNAME" \
+            -e CI_ADMIN_PASSWORD="$QA_ORANGEHRM_PASSWORD" \
+            orangehrm php -r '
+              require "/var/www/html/src/vendor/autoload.php";
+              $config = [
+                "database" => [
+                  "hostName" => getenv("CI_DB_HOST"),
+                  "hostPort" => 3306,
+                  "databaseName" => getenv("CI_DB_NAME"),
+                  "privilegedDatabaseUser" => "root",
+                  "privilegedDatabasePassword" => getenv("CI_DB_PASSWORD"),
+                  "useSameDbUserForOrangeHRM" => "y",
+                  "orangehrmDatabaseUser" => null,
+                  "orangehrmDatabasePassword" => null,
+                  "isExistingDatabase" => "n",
+                  "enableDataEncryption" => "n"
+                ],
+                "organization" => [
+                  "name" => "Automation CI",
+                  "country" => "US"
+                ],
+                "admin" => [
+                  "adminUserName" => getenv("CI_ADMIN_USERNAME"),
+                  "adminPassword" => getenv("CI_ADMIN_PASSWORD"),
+                  "adminEmployeeFirstName" => "Automation",
+                  "adminEmployeeLastName" => "Admin",
+                  "workEmail" => "automation@example.com",
+                  "contactNumber" => null,
+                  "registrationConsent" => false
+                ],
+                "license" => ["agree" => "y"]
+              ];
+              file_put_contents(
+                "/var/www/html/installer/cli_install_config.yaml",
+                Symfony\Component\Yaml\Yaml::dump($config, 4, 2)
+              );
+            '
+
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
+            orangehrm php /var/www/html/installer/cli_install.php
+
+      - name: Verify OrangeHRM installation
+        timeout-minutes: 2
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+        run: |
+          echo "Checking OrangeHRM database tables..."
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
+            mariadb -u root -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" \
+            -e "SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='$MARIADB_DATABASE';"
+
+          echo "Checking OrangeHRM login endpoint..."
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
+          echo "Login endpoint HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "=== ORANGEHRM CONTAINER LOGS ==="
+            docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 orangehrm || true
+            exit 1
+          fi
 
       - name: Install dependencies
         run: |
@@ -37,7 +129,7 @@ jobs:
 
       - name: Test with pytest
         run: pytest -v -s tests/test_ui.py::test_orangehrm_login --headless --reruns 0
-        
+
       - name: Upload Test Reports & Screenshots
         if: always()
         uses: actions/upload-artifact@v7
