@@ -1,4 +1,6 @@
 from selenium import webdriver
+from pathlib import Path
+from selenium.webdriver.chrome.service import Service
 
 
 class BrowserFactory:
@@ -31,7 +33,20 @@ class BrowserFactory:
                 options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--window-size=1920,1080")
 
-        driver = driver_cls(options=options)
+        if browser == "chrome":
+            Path("logs").mkdir(exist_ok=True)
+
+            service = Service(
+                log_output="logs/chromedriver.log",
+                service_args=["--verbose"],
+            )
+
+            driver = driver_cls(
+                service=service,
+                options=options,
+            )
+        else:
+            driver = driver_cls(options=options)
 
         if browser == "chrome" and headless:
             driver.execute_cdp_cmd(

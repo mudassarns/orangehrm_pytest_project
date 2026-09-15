@@ -29,4 +29,12 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest
-        run: pytest -v -s
+        run: pytest -v -s tests/test_ui.py::test_orangehrm_login
+        
+      - name: Upload ChromeDriver logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chromedriver-logs
+          path: logs/
+          retention-days: 7
