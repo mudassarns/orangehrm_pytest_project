@@ -29,7 +29,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest
-        run: pytest -v -s tests/test_ui.py::test_orangehrm_login
+        run: pytest -v -s tests/test_ui.py::test_orangehrm_login --headless
         
       - name: Upload ChromeDriver logs
         if: always()
