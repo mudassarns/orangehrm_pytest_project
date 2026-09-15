@@ -12,6 +12,8 @@ jobs:
 
     env:
       QA_ORANGEHRM_BASE_URL: ${{ secrets.QA_ORANGEHRM_BASE_URL }}
+      QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
+      QA_ORANGEHRM_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
 
     steps:
       - name: Check out repository
