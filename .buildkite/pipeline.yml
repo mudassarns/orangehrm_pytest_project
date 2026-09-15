@@ -8,6 +8,8 @@ steps:
     command: |
       sudo apt-get update -y
       sudo apt-get install -y libmariadb-dev
+      which mariadb_config
+      mariadb_config --version
 
   - label: "Install Python dependencies"
     command: |
