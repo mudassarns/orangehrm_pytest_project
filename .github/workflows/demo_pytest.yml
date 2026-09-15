@@ -22,6 +22,10 @@ jobs:
         with:
           python-version: '3.14.6'
 
+      - name: Start OrangeHRM
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml up -d
+
       - name: Install MariaDB build dependency
         run: |
           sudo apt-get update -y
@@ -32,16 +36,8 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest
-        run: pytest -v -s tests/test_ui.py::test_orangehrm_login --headless
+        run: pytest -v -s tests/test_ui.py::test_orangehrm_login --headless --reruns 0
         
-      - name: Upload ChromeDriver logs
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: chromedriver-logs
-          path: logs/
-          retention-days: 7
-
       - name: Upload Test Reports & Screenshots
         if: always()
         uses: actions/upload-artifact@v7
