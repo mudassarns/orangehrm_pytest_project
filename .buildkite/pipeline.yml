@@ -103,7 +103,9 @@ steps:
 
       echo "Running tests..."
       pytest tests/ --headless -v -s -n 4
+      TEST_EXIT_CODE=$?
 
       echo "Uploading test artifacts..."
       buildkite-agent artifact upload "reports/**/*"
-      buildkite-agent artifact upload "screenshots/**/*"
+
+      exit $TEST_EXIT_CODE
