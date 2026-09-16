@@ -1,10 +1,9 @@
 steps:
-  - label: "Install Python dependencies"
+  - label: "Install system dependencies for MariaDB"
     command: |
       sudo apt-get update -y
       sudo apt-get install -y libmariadb-dev python3.10-dev
       python3 --version
-      python3 -m pip install -r requirements.txt
 
   - label: "Start Docker Stack"
     secrets:
@@ -93,6 +92,10 @@ steps:
         docker compose -f docker-orangehrm/docker-compose.v2.yml logs --tail=200 orangehrm || true
         exit 1
       fi
+
+      echo "Installing Python dependencies..."
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r requirements.txt
 
       echo "Running one UI test..."
       pytest tests/test_ui.py::test_get_employees --headless -v -s
