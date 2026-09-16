@@ -1,5 +1,5 @@
 steps:
-  - label: "Start Docker Stack"
+  - label: "Run OrangeHRM Regression Tests"
     secrets:
       - QA_DB_PASSWORD
       - QA_DB_NAME
