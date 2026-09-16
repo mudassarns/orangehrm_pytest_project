@@ -19,11 +19,6 @@ steps:
       export MARIADB_USER="orangehrm"
       export MARIADB_PASSWORD="$$QA_DB_PASSWORD"
 
-      test -n "$$MARIADB_ROOT_PASSWORD" && echo "MARIADB_ROOT_PASSWORD is set"
-      test -n "$$MARIADB_DATABASE" && echo "MARIADB_DATABASE is set"
-      test -n "$$MARIADB_USER" && echo "MARIADB_USER is set"
-      test -n "$$MARIADB_PASSWORD" && echo "MARIADB_PASSWORD is set"
-
       docker compose -f docker-orangehrm/docker-compose.v2.yml up -d --wait
 
       echo "MariaDB is ready"
@@ -106,5 +101,5 @@ steps:
         libxss1 \
         libxshmfence1
 
-      echo "Running one UI test..."
+      echo "Running tests..."
       pytest tests/ --headless -v -s -n 4
