@@ -22,7 +22,6 @@ steps:
       test -n "$$MARIADB_USER" && echo "MARIADB_USER is set"
       test -n "$$MARIADB_PASSWORD" && echo "MARIADB_PASSWORD is set"
 
-      docker compose -f docker-orangehrm/docker-compose.yml up -
-      
+      docker compose -f docker-orangehrm/docker-compose.yml up -d
       docker compose -f docker-orangehrm/docker-compose.yml ps
       
