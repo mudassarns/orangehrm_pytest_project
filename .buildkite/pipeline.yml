@@ -9,6 +9,8 @@ steps:
       - QA_ORANGEHRM_BASE_URL
       - QA_DB_HOST
       - QA_DB_PORT
+    artifact_paths:
+      - "reports/**/*"
     command: |
       sudo apt-get update -y
       sudo apt-get install -y libmariadb-dev python3.10-dev
@@ -22,8 +24,6 @@ steps:
       docker compose -f docker-orangehrm/docker-compose.v2.yml up -d --wait
 
       echo "MariaDB is ready"
-
-      docker compose -f docker-orangehrm/docker-compose.v2.yml ps
 
       docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
         -e CI_DB_HOST=mariadb \
@@ -103,9 +103,3 @@ steps:
 
       echo "Running tests..."
       pytest tests/ --headless -v -s -n 4
-      TEST_EXIT_CODE=$?
-
-      echo "Uploading test artifacts..."
-      buildkite-agent artifact upload "reports/**/*"
-
-      exit $TEST_EXIT_CODE
