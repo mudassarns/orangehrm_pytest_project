@@ -1,9 +1,4 @@
 steps:
-  - label: "Check Python 3.14.6"
-    command: |
-      docker run --rm python:3.14.6 python --version
-
-steps:
   - label: "Install Python dependencies"
     command: |
       sudo apt-get update -y
@@ -11,8 +6,17 @@ steps:
       python3 --version
       python3 -m pip install -r requirements.txt
 
-steps:
   - label: "Start Docker Stack"
+    secrets:
+      - QA_DB_PASSWORD
+      - QA_DB_NAME
+      - QA_DB_USER
     command: |
+      MARIADB_ROOT_PASSWORD="$QA_DB_PASSWORD" \
+      MARIADB_DATABASE="$QA_DB_NAME" \
+      MARIADB_USER="$QA_DB_USER" \
+      MARIADB_PASSWORD="$QA_DB_PASSWORD" \
       docker compose -f docker-orangehrm/docker-compose.yml up -d
+
       docker compose -f docker-orangehrm/docker-compose.yml ps
+      
