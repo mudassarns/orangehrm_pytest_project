@@ -75,3 +75,18 @@ steps:
 
       docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
         orangehrm php /var/www/html/installer/cli_install.php
+
+      echo "Checking OrangeHRM database tables..."
+      docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T mariadb \
+        mariadb -u root -p"$$QA_DB_PASSWORD" "$$QA_DB_NAME" \
+        -e "SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='$$QA_DB_NAME';"
+
+      echo "Checking OrangeHRM login endpoint..."
+      HTTP_STATUS=$$(curl -o /dev/null -s -w "%{http_code}" "http://localhost:8080/web/index.php/auth/login")
+      echo "Login endpoint HTTP status: $$HTTP_STATUS"
+
+      if [ "$$HTTP_STATUS" -ne 200 ]; then
+        echo "=== ORANGEHRM CONTAINER LOGS ==="
+        docker compose -f docker-orangehrm/docker-compose.v2.yml logs --tail=200 orangehrm || true
+        exit 1
+      fi
