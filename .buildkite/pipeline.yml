@@ -21,11 +21,11 @@ steps:
       export MARIADB_USER="orangehrm"
       export MARIADB_PASSWORD="$$QA_DB_PASSWORD"
 
-      docker compose -f docker-orangehrm/docker-compose.v2.yml up -d --wait
+      docker compose -f docker-orangehrm/docker-compose.yml up -d --wait
 
       echo "MariaDB is ready"
 
-      docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
+      docker compose -f docker-orangehrm/docker-compose.yml exec -T \
         -e CI_DB_HOST=mariadb \
         -e CI_DB_PORT=3306 \
         -e CI_DB_NAME="$$QA_DB_NAME" \
@@ -68,11 +68,11 @@ steps:
           );
         '
 
-      docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
+      docker compose -f docker-orangehrm/docker-compose.yml exec -T \
         orangehrm php /var/www/html/installer/cli_install.php
 
       echo "Checking OrangeHRM database tables..."
-      docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T mariadb \
+      docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
         mariadb -u root -p"$$QA_DB_PASSWORD" "$$QA_DB_NAME" \
         -e "SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='$$QA_DB_NAME';"
 
@@ -82,7 +82,7 @@ steps:
 
       if [ "$$HTTP_STATUS" -ne 200 ]; then
         echo "=== ORANGEHRM CONTAINER LOGS ==="
-        docker compose -f docker-orangehrm/docker-compose.v2.yml logs --tail=200 orangehrm || true
+        docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 orangehrm || true
         exit 1
       fi
 

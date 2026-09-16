@@ -33,7 +33,7 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.v2.yml up -d
+          docker compose -f docker-orangehrm/docker-compose.yml up -d
 
       - name: Wait for MariaDB to be ready
         timeout-minutes: 2
@@ -54,7 +54,7 @@ jobs:
           QA_ORANGEHRM_USERNAME: ${{ secrets.QA_ORANGEHRM_USERNAME }}
           QA_ORANGEHRM_PASSWORD: ${{ secrets.QA_ORANGEHRM_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
             -e CI_DB_HOST=mariadb \
             -e CI_DB_PORT=3306 \
             -e CI_DB_NAME="$QA_DB_NAME" \
@@ -97,7 +97,7 @@ jobs:
               );
             '
 
-          docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T \
             orangehrm php /var/www/html/installer/cli_install.php
 
       - name: Verify OrangeHRM installation
@@ -107,7 +107,7 @@ jobs:
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
         run: |
           echo "Checking OrangeHRM database tables..."
-          docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T mariadb \
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
             mariadb -u root -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" \
             -e "SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='$MARIADB_DATABASE';"
 
@@ -116,7 +116,7 @@ jobs:
           echo "Login endpoint HTTP status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -ne 200 ]; then
             echo "=== ORANGEHRM CONTAINER LOGS ==="
-            docker compose -f docker-orangehrm/docker-compose.v2.yml logs --tail=200 orangehrm || true
+            docker compose -f docker-orangehrm/docker-compose.yml logs --tail=200 orangehrm || true
             exit 1
           fi
 
@@ -159,4 +159,4 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.v2.yml down -v
+          docker compose -f docker-orangehrm/docker-compose.yml down -v
