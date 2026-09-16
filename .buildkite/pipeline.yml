@@ -15,7 +15,7 @@ steps:
       - QA_ORANGEHRM_PASSWORD
     command: |
       export MARIADB_ROOT_PASSWORD="$$QA_DB_PASSWORD"
-      export MARIADB_DATABASE="$$QA_DB_NAME"
+      export MARIADB_DATABASE=""
       export MARIADB_USER="orangehrm"
       export MARIADB_PASSWORD="$$QA_DB_PASSWORD"
 
@@ -75,4 +75,3 @@ steps:
 
       docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
         orangehrm php /var/www/html/installer/cli_install.php
-        
