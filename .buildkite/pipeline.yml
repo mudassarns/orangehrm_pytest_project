@@ -107,4 +107,4 @@ steps:
         libxshmfence1
 
       echo "Running one UI test..."
-      pytest tests/ --headless -v -s
+      pytest tests/ --headless -v -s -n 4
