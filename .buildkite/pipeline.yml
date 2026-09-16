@@ -23,5 +23,17 @@ steps:
       test -n "$$MARIADB_PASSWORD" && echo "MARIADB_PASSWORD is set"
 
       docker compose -f docker-orangehrm/docker-compose.yml up -d
+
+      CONTAINER_ID=$(docker ps -q -f "name=mariadb")
+
+      timeout 60s bash -c "
+        until docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p\"$$QA_DB_PASSWORD\" --silent 2>/dev/null; do
+          echo 'Waiting for MariaDB...'
+          sleep 2
+        done
+      "
+
+      echo "MariaDB is ready"
+
       docker compose -f docker-orangehrm/docker-compose.yml ps
       
