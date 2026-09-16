@@ -12,17 +12,17 @@ steps:
       - QA_DB_NAME
       - QA_DB_USER
     command: |
-      export MARIADB_ROOT_PASSWORD="$QA_DB_PASSWORD"
-      export MARIADB_DATABASE="$QA_DB_NAME"
-      export MARIADB_USER="$QA_DB_USER"
-      export MARIADB_PASSWORD="$QA_DB_PASSWORD"
+      export MARIADB_ROOT_PASSWORD="$$QA_DB_PASSWORD"
+      export MARIADB_DATABASE="$$QA_DB_NAME"
+      export MARIADB_USER="$$QA_DB_USER"
+      export MARIADB_PASSWORD="$$QA_DB_PASSWORD"
 
-      test -n "$MARIADB_ROOT_PASSWORD" && echo "MARIADB_ROOT_PASSWORD is set"
-      test -n "$MARIADB_DATABASE" && echo "MARIADB_DATABASE is set"
-      test -n "$MARIADB_USER" && echo "MARIADB_USER is set"
-      test -n "$MARIADB_PASSWORD" && echo "MARIADB_PASSWORD is set"
+      test -n "$$MARIADB_ROOT_PASSWORD" && echo "MARIADB_ROOT_PASSWORD is set"
+      test -n "$$MARIADB_DATABASE" && echo "MARIADB_DATABASE is set"
+      test -n "$$MARIADB_USER" && echo "MARIADB_USER is set"
+      test -n "$$MARIADB_PASSWORD" && echo "MARIADB_PASSWORD is set"
 
-      docker compose -f docker-orangehrm/docker-compose.yml up -d
-
+      docker compose -f docker-orangehrm/docker-compose.yml up -
+      
       docker compose -f docker-orangehrm/docker-compose.yml ps
       
