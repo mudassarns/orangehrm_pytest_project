@@ -96,4 +96,4 @@ steps:
       python3 -m pip install -r requirements.txt
 
       echo "Running one UI test..."
-      pytest tests/test_ui.py::test_get_employees --headless -v -s
+      pytest tests/test_ui.py::test_orangehrm_login --headless -v -s
