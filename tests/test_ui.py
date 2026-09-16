@@ -27,7 +27,6 @@ def test_add_employee(create_employee):
     )
 
     assert result_count == 1
-    assert 1==2
 
 
 def test_search_employee_by_id(create_employee):
@@ -67,7 +66,6 @@ def test_edit_employee(create_employee):
     assert "Updated UpdatedMiddle" in row_text
     assert "UpdatedLast" in row_text
     assert employee_data["employee_id"] in row_text
-    assert 1==2
 
 
 def test_delete_employee(create_employee):
@@ -80,4 +78,3 @@ def test_delete_employee(create_employee):
     employee_list.delete_first_employee()
     result_count = employee_list.search_employee_by_id(employee_id)
     assert result_count == 0
-    assert 1==2
