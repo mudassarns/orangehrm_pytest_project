@@ -13,6 +13,9 @@ steps:
       - QA_DB_USER
       - QA_ORANGEHRM_USERNAME
       - QA_ORANGEHRM_PASSWORD
+      - QA_ORANGEHRM_BASE_URL
+      - QA_DB_HOST
+      - QA_DB_PORT
     command: |
       export MARIADB_ROOT_PASSWORD="$$QA_DB_PASSWORD"
       export MARIADB_DATABASE=""
@@ -90,3 +93,10 @@ steps:
         docker compose -f docker-orangehrm/docker-compose.v2.yml logs --tail=200 orangehrm || true
         exit 1
       fi
+
+      echo "Installing Python dependencies..."
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r requirements.txt
+
+      echo "Running tests..."
+      pytest tests/ --headless -v -s -n 4
