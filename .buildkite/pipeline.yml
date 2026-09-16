@@ -95,5 +95,17 @@ steps:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r requirements.txt
 
+      echo "Installing browser dependencies..."
+      sudo apt-get update -y
+      sudo apt-get install -y \
+        libnss3 \
+        libatk-bridge2.0-0 \
+        libgtk-3-0 \
+        libgbm1 \
+        libasound2 \
+        libxss1 \
+        libxshmfence1
+
       echo "Running one UI test..."
       pytest tests/test_ui.py::test_orangehrm_login --headless -v -s
+      
