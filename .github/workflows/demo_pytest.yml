@@ -42,18 +42,7 @@ jobs:
           MARIADB_USER: "orangehrm"
           MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          docker compose -f docker-orangehrm/docker-compose.yml up -d
-
-      - name: Wait for MariaDB to be ready
-        timeout-minutes: 2
-        run: |
-          CONTAINER_ID=$(docker ps -q -f "name=mariadb")
-          timeout 60s bash -c "
-            until docker exec $CONTAINER_ID mariadb-admin ping -h 127.0.0.1 -u root -p\"${{ secrets.QA_DB_PASSWORD }}\" --silent 2>/dev/null; do
-              echo 'Waiting for MariaDB...'
-              sleep 2
-            done
-          "
+          docker compose -f docker-orangehrm/docker-compose.yml up -d --wait
 
       - name: Install OrangeHRM via official CLI installer
         timeout-minutes: 7
@@ -135,7 +124,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest
-        run: pytest -v -s tests/ --headless
+        run: pytest -v -s tests/ --headless -n 4
 
       - name: Upload Test Reports & Screenshots
         if: always()
@@ -146,3 +135,14 @@ jobs:
             reports/
             screenshots/
           retention-days: 7
+
+      - name: Tear down Docker Stack
+        if: always()
+        timeout-minutes: 2
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: "orangehrm"
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml down -v
