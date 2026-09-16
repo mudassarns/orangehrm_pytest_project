@@ -14,7 +14,7 @@ steps:
     command: |
       export MARIADB_ROOT_PASSWORD="$$QA_DB_PASSWORD"
       export MARIADB_DATABASE="$$QA_DB_NAME"
-      export MARIADB_USER="$$QA_DB_USER"
+      export MARIADB_USER="orangehrm"
       export MARIADB_PASSWORD="$$QA_DB_PASSWORD"
 
       test -n "$$MARIADB_ROOT_PASSWORD" && echo "MARIADB_ROOT_PASSWORD is set"
