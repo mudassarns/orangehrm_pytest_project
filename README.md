@@ -100,3 +100,5 @@ Run tests in parallel:
 Run tests against a specific environment:
 
     pytest -v --env qa
+
+Buildkite push trigger verified.
