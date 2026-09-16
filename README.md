@@ -100,3 +100,64 @@ Run tests in parallel:
 Run tests against a specific environment:
 
     pytest -v --env qa
+
+## CI/CD
+
+The project is validated through two CI platforms:
+
+### GitHub Actions
+
+GitHub Actions runs the automation pipeline automatically when code is pushed to the `dev` or `demo` branch.
+
+The pipeline:
+
+- Starts the OrangeHRM and MariaDB Docker environment
+- Installs OrangeHRM through the official CLI installer
+- Verifies the database and application endpoint
+- Installs Python dependencies
+- Runs the complete pytest suite
+- Executes tests in parallel using pytest-xdist (`-n 4`)
+- Uploads test reports and screenshots as artifacts
+- Tears down the Docker environment after the run
+
+Workflows:
+
+    .github/workflows/pytest.yml
+    .github/workflows/demo_pytest.yml
+
+### Buildkite
+
+Buildkite is configured to automatically trigger when code is pushed to the `demo` branch through the GitHub webhook integration.
+
+The Buildkite pipeline:
+
+- Starts the Docker-based OrangeHRM environment
+- Installs and verifies OrangeHRM
+- Runs UI, API, database, and hybrid tests
+- Executes tests in parallel using pytest-xdist (`-n 4`)
+- Generates a self-contained HTML pytest report
+- Uploads the report as a Buildkite artifact
+- Continues artifact upload and Docker cleanup even when tests fail
+
+Pipeline definition:
+
+    .buildkite/pipeline.yml
+
+### CI architecture
+
+    Git push
+       |
+       +--------------------> GitHub Actions
+       |                         |
+       |                         +--> Docker
+       |                         +--> pytest -n 4
+       |                         +--> Test artifacts
+       |
+       +--------------------> Buildkite
+                                 |
+                                 +--> Docker
+                                 +--> pytest -n 4
+                                 +--> HTML report
+                                 +--> Test artifacts
+
+Both CI pipelines use the same Docker-based OrangeHRM test environment and the same automated test suite.
