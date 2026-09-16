@@ -103,3 +103,7 @@ steps:
 
       echo "Running tests..."
       pytest tests/ --headless -v -s -n 4
+
+      echo "Uploading test artifacts..."
+      buildkite-agent artifact upload "reports/**/*"
+      buildkite-agent artifact upload "screenshots/**/*"
