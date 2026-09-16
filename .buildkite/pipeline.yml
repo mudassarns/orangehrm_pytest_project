@@ -28,3 +28,56 @@ steps:
 
       docker compose -f docker-orangehrm/docker-compose.v2.yml ps
       
+  - label: "Install OrangeHRM"
+    secrets:
+      - QA_DB_NAME
+      - QA_DB_PASSWORD
+      - QA_ORANGEHRM_USERNAME
+      - QA_ORANGEHRM_PASSWORD
+    command: |
+      docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
+        -e CI_DB_HOST=mariadb \
+        -e CI_DB_PORT=3306 \
+        -e CI_DB_NAME="$$QA_DB_NAME" \
+        -e CI_DB_PASSWORD="$$QA_DB_PASSWORD" \
+        -e CI_ADMIN_USERNAME="$$QA_ORANGEHRM_USERNAME" \
+        -e CI_ADMIN_PASSWORD="$$QA_ORANGEHRM_PASSWORD" \
+        orangehrm php -r '
+          require "/var/www/html/src/vendor/autoload.php";
+          $config = [
+            "database" => [
+              "hostName" => getenv("CI_DB_HOST"),
+              "hostPort" => 3306,
+              "databaseName" => getenv("CI_DB_NAME"),
+              "privilegedDatabaseUser" => "root",
+              "privilegedDatabasePassword" => getenv("CI_DB_PASSWORD"),
+              "useSameDbUserForOrangeHRM" => "y",
+              "orangehrmDatabaseUser" => null,
+              "orangehrmDatabasePassword" => null,
+              "isExistingDatabase" => "n",
+              "enableDataEncryption" => "n"
+            ],
+            "organization" => [
+              "name" => "Automation CI",
+              "country" => "US"
+            ],
+            "admin" => [
+              "adminUserName" => getenv("CI_ADMIN_USERNAME"),
+              "adminPassword" => getenv("CI_ADMIN_PASSWORD"),
+              "adminEmployeeFirstName" => "Automation",
+              "adminEmployeeLastName" => "Admin",
+              "workEmail" => "automation@example.com",
+              "contactNumber" => null,
+              "registrationConsent" => false
+            ],
+            "license" => ["agree" => "y"]
+          ];
+          file_put_contents(
+            "/var/www/html/installer/cli_install_config.yaml",
+            Symfony\Component\Yaml\Yaml::dump($config, 4, 2)
+          );
+        '
+
+      docker compose -f docker-orangehrm/docker-compose.v2.yml exec -T \
+        orangehrm php /var/www/html/installer/cli_install.php
+        
