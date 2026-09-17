@@ -11,6 +11,7 @@ from config import Config
 from pages.login_page import LoginPage
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from utils.test_data import generate_employee_data
 
 
 class CallbackHandler(BaseHTTPRequestHandler):
@@ -121,6 +122,85 @@ def test_orangehrm_oauth_flow(driver):
             f"{api_response.status_code} {api_response.text}"
         )
 
+        employee_data = generate_employee_data()
+
+        create_response = requests.post(
+            f"{Config.get('ORANGEHRM_BASE_URL')}/web/index.php/api/v2/pim/employees",
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            json={
+                "firstName": employee_data["first_name"],
+                "middleName": employee_data["middle_name"],
+                "lastName": employee_data["last_name"],
+                "empPicture": None,
+                "employeeId": employee_data["employee_id"]
+            },
+            timeout=15
+        )
+
+        assert create_response.status_code == 200, (
+            f"OAuth create employee failed: "
+            f"{create_response.status_code} {create_response.text}"
+        )
+
+        created_employee = create_response.json()["data"]
+
+        assert created_employee["empNumber"] > 0
+        assert created_employee["employeeId"] == employee_data["employee_id"]
+
     finally:
         server.shutdown()
         server.server_close()
+
+def test_orangehrm_oauth_rejects_invalid_redirect_uri(driver):
+    invalid_redirect_uri = "http://127.0.0.1:9999/callback"
+
+    verifier = secrets.token_urlsafe(64)
+
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b"=").decode()
+
+    params = {
+        "response_type": "code",
+        "client_id": "ci_oauth_probe",
+        "redirect_uri": invalid_redirect_uri,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "state": "ci-test"
+    }
+
+    authorize_url = (
+        f"{Config.get('ORANGEHRM_BASE_URL')}/web/index.php/oauth2/authorize?"
+        f"{urlencode(params)}"
+    )
+
+    driver.get(authorize_url)
+
+    login_page = LoginPage(driver)
+    login_page.login(
+        Config.get("ORANGEHRM_USERNAME"),
+        Config.get("ORANGEHRM_PASSWORD")
+    )
+
+    WebDriverWait(driver, 15).until(
+        lambda d: "This request is invalid" in d.page_source
+    )
+
+    assert "This request is invalid" in driver.page_source
+
+
+def test_orangehrm_api_rejects_invalid_access_token():
+    api_response = requests.get(
+        f"{Config.get('ORANGEHRM_BASE_URL')}/web/index.php/api/v2/pim/employees",
+        headers={
+            "Authorization": "Bearer invalid-token-for-test"
+        },
+        timeout=15
+    )
+
+    assert api_response.status_code == 401, (
+        f"Expected 401 for invalid access token, "
+        f"got {api_response.status_code}: {api_response.text}"
+    )
