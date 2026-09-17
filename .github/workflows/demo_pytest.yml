@@ -119,20 +119,17 @@ jobs:
             exit 1
           fi
 
-      - name: Probe OrangeHRM OAuth endpoint
+      - name: Probe OrangeHRM OAuth2 authorize endpoint
         run: |
-          echo "Probing OrangeHRM OAuth endpoint from GitHub Actions..."
-
+          echo "Probing OrangeHRM OAuth2 authorize endpoint..."
+      
           HTTP_STATUS=$(curl -sS \
             --max-redirs 0 \
             -o /tmp/oauth_body \
             -D /tmp/oauth_headers \
             -w "%{http_code}" \
-            -X POST \
-            "http://localhost:8080/index.php/oauth/issueToken" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data "client_id=invalid-ci-probe&client_secret=invalid-ci-probe&grant_type=client_credentials")
-
+            "http://localhost:8080/web/index.php/oauth2/authorize?response_type=code&client_id=invalid-ci-probe&redirect_uri=http://localhost/oauth/callback&code_challenge=invalid-ci-probe&code_challenge_method=S256")
+      
           echo "HTTP status: $HTTP_STATUS"
           echo "Response headers:"
           cat /tmp/oauth_headers
