@@ -123,8 +123,6 @@ jobs:
         env:
           MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
-          MARIADB_USER: orangehrm
-          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
             mariadb -u root -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" \
@@ -158,7 +156,7 @@ jobs:
             -o /tmp/oauth_body \
             -D /tmp/oauth_headers \
             -w "%{http_code}" \
-            "http://localhost:8080/web/index.php/oauth2/authorize?response_type=code&client_id=invalid-ci-probe&redirect_uri=http://localhost/oauth/callback&code_challenge=invalid-ci-probe&code_challenge_method=S256")
+            "http://localhost:8080/web/index.php/oauth2/authorize?response_type=code&client_id=ci_oauth_probe&redirect_uri=http://127.0.0.1:8765/callback&code_challenge=invalid-ci-probe&code_challenge_method=S256")
       
           echo "HTTP status: $HTTP_STATUS"
           echo "Response headers:"
