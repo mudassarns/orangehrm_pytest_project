@@ -9,6 +9,8 @@ import requests
 
 from config import Config
 from pages.login_page import LoginPage
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 class CallbackHandler(BaseHTTPRequestHandler):
@@ -66,9 +68,10 @@ def test_orangehrm_oauth_flow(driver):
             Config.get("ORANGEHRM_PASSWORD")
         )
 
-        allow_button = driver.find_element(
-            "xpath",
-            "//button[normalize-space()='Allow Access']"
+        allow_button = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable(
+                ("xpath", "//button[normalize-space()='Allow Access']")
+            )
         )
         allow_button.click()
 
