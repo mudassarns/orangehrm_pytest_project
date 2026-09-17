@@ -75,14 +75,17 @@ def test_orangehrm_oauth_flow(driver):
         )
         allow_button.click()
 
-        for _ in range(30):
-            if CallbackHandler.authorization_code:
-                break
+        WebDriverWait(driver, 30).until(
+            lambda d: d.current_url.startswith(redirect_uri)
+        )
 
-            threading.Event().wait(1)
+        authorization_code = parse_qs(
+            urlparse(driver.current_url).query
+        ).get("code", [None])[0]
 
-        assert CallbackHandler.authorization_code is not None, (
-            "OAuth authorization code was not received"
+        assert authorization_code is not None, (
+            f"OAuth authorization code was not found in callback URL: "
+            f"{driver.current_url}"
         )
 
         token_response = requests.post(
@@ -91,7 +94,7 @@ def test_orangehrm_oauth_flow(driver):
                 "grant_type": "authorization_code",
                 "client_id": "ci_oauth_probe",
                 "redirect_uri": redirect_uri,
-                "code": CallbackHandler.authorization_code,
+                "code": authorization_code,
                 "code_verifier": verifier
             },
             timeout=15
