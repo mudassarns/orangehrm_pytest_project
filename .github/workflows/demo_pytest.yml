@@ -119,6 +119,23 @@ jobs:
             exit 1
           fi
 
+      - name: Provision temporary OAuth client
+        run: |
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
+            mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" \
+            "${{ secrets.QA_DB_NAME }}" \
+            -e "
+            INSERT INTO ohrm_oauth2_client
+            (name, client_id, client_secret, redirect_uri, is_confidential, enabled)
+            VALUES
+            ('CI OAuth Probe',
+            'ci_oauth_probe',
+            NULL,
+            'http://127.0.0.1:8765/callback',
+            0,
+            1);
+            "
+
       - name: Probe OrangeHRM OAuth2 authorize endpoint
         run: |
           echo "Probing OrangeHRM OAuth2 authorize endpoint..."
