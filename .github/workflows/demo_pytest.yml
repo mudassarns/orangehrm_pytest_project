@@ -169,7 +169,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest
-        run: pytest tests/test_api.py::test_get_employees -v -s --headless
+        run: pytest tests/test_oauth.py -v -s --headless
 
       - name: Upload Test Reports & Screenshots
         if: always()
