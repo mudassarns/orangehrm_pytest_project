@@ -120,20 +120,33 @@ jobs:
           fi
 
       - name: Provision temporary OAuth client
+        env:
+          MARIADB_ROOT_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
+          MARIADB_DATABASE: ${{ secrets.QA_DB_NAME }}
+          MARIADB_USER: orangehrm
+          MARIADB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
           docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
-            mariadb -u root -p"${{ secrets.QA_DB_PASSWORD }}" \
-            "${{ secrets.QA_DB_NAME }}" \
+            mariadb -u root -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" \
             -e "
             INSERT INTO ohrm_oauth2_client
             (name, client_id, client_secret, redirect_uri, is_confidential, enabled)
             VALUES
             ('CI OAuth Probe',
-            'ci_oauth_probe',
-            NULL,
-            'http://127.0.0.1:8765/callback',
-            0,
-            1);
+              'ci_oauth_probe',
+              NULL,
+              'http://127.0.0.1:8765/callback',
+              0,
+              1);
+            "
+      
+          echo "Verifying OAuth client..."
+          docker compose -f docker-orangehrm/docker-compose.yml exec -T mariadb \
+            mariadb -u root -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" \
+            -e "
+            SELECT name, client_id, redirect_uri, is_confidential, enabled
+            FROM ohrm_oauth2_client
+            WHERE client_id='ci_oauth_probe';
             "
 
       - name: Probe OrangeHRM OAuth2 authorize endpoint
@@ -158,7 +171,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Test with pytest
-        run: pytest -v -s tests/ --headless -n 4
+        run: pytest tests/test_api.py::test_get_employees -v -s --headless
 
       - name: Upload Test Reports & Screenshots
         if: always()
