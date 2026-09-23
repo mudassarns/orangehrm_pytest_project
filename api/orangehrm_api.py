@@ -1,10 +1,10 @@
 import requests
 from api.base_api_client import BaseApiClient
 from config import Config
-from utils.logger import get_logger
+import logging
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class OrangeHRMApi(BaseApiClient):

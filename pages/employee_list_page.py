@@ -6,10 +6,10 @@ from pages.base_page import BasePage
 from pages.add_employee_page import AddEmployeePage
 from pages.employee_details_page import EmployeeDetailsPage
 from utils.locator_utils import LocatorUtils
-from utils.logger import get_logger
+import logging
 from selenium.common.exceptions import (StaleElementReferenceException)
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class EmployeeListPage(BasePage):
