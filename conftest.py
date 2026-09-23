@@ -5,13 +5,13 @@ from config import Config
 from utils.test_data import generate_employee_data
 from pages.dashboard_page import DashboardPage
 from api.orangehrm_api import OrangeHRMApi
-from utils.logger import get_logger
+import logging
 from db.database_client import DatabaseClient
 from utils.browser_factory import BrowserFactory
 from utils.screenshot import attach_failure_screenshot
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def pytest_addoption(parser):

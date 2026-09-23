@@ -1,9 +1,9 @@
 from selenium.webdriver.common.by import By
 from pages.base_page import BasePage
 from pages.dashboard_page import DashboardPage
-from utils.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class LoginPage(BasePage):
