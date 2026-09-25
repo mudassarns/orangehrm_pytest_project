@@ -127,7 +127,7 @@ jobs:
           QA_DB_USER: ${{ secrets.QA_DB_USER }}
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
         run: |
-          pytest tests/ --headless -v -s -n 4
+          pytest tests/ --headless -v -s
 
       - name: Upload Test Reports & Screenshots
         if: always()
