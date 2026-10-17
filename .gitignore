@@ -3,35 +3,39 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Virtual environment
+# Virtual environments
 .venv/
 venv/
 env/
 
-# Environment variables / secrets
+# Local environment files (allow the safe template)
 .env
 .env.*
+!.env.example
 
-# Pytest
+# OAuth credentials, tokens, and local credentials files
+gmail_oauth_client.json
+gmail_token*.json
+client_secret*.json
+credentials.json
+token.json
+*.pem
+*.key
+
+# Pytest output and screenshots
 .pytest_cache/
-
-# Test reports and generated screenshots
 reports/
 
 # Coverage
 .coverage
 htmlcov/
 
-# VS Code
+# Editors and operating system
 .vscode/
-
-# OS files
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs and temporary experiments
 *.log
-
-# Temporary/experiments
 experiments/
 rough.md
