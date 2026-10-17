@@ -1,163 +1,132 @@
-This project demonstrates UI, API, database, and hybrid test automation.
+# OrangeHRM Selenium Automation Framework
 
-# OrangeHRM Pytest Automation Framework
+[![GitHub Actions](https://github.com/mudassarns/orangehrm_pytest_project/actions/workflows/pytest.yml/badge.svg?branch=dev)](https://github.com/mudassarns/orangehrm_pytest_project/actions/workflows/pytest.yml)
 
-## Running OrangeHRM with Docker
+A Python test-automation portfolio demonstrating browser, REST API, database, and cross-layer testing against OrangeHRM using Selenium WebDriver and pytest.
 
-The project uses a local Docker-based OrangeHRM environment for UI, API, and database testing.
+## What this project demonstrates
 
-### Starting OrangeHRM
+- UI automation with Selenium WebDriver and reusable page objects.
+- REST API validation using Python `requests`.
+- MariaDB verification through parameterized database queries.
+- Hybrid test workflows that combine UI, API, and database checks.
+- Shared pytest fixtures for authentication, test data, and cleanup.
+- Parallel execution with pytest-xdist and self-contained HTML reporting.
+- CI configuration for GitHub Actions and a Buildkite pipeline definition.
 
-After restarting the laptop, make sure Docker Desktop is running before starting the OrangeHRM containers.
+## Technology stack
 
-Start the containers in detached mode:
+Python 3.14 · Selenium WebDriver · pytest · pytest-xdist · Requests · MariaDB · Docker Compose · GitHub Actions · Buildkite · pytest-html
 
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml up -d
+## Test coverage
 
-Verify the containers:
+| Module | Purpose |
+|---|---|
+| `tests/test_ui.py` | Browser-based workflow validation |
+| `tests/test_api.py` | Employee API operations and response validation |
+| `tests/test_database.py` | Database-level verification of employee records |
+| `tests/test_hybrid.py` | Cross-layer UI/API/database validation |
 
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml ps
+Test data is generated for test execution, and shared fixtures perform cleanup for supported employee-creation workflows.
 
-Expected services:
+## Project structure
 
-- `orangehrm` → available at http://localhost:8080
-- `mariadb` → available at localhost:3306
+```text
+api/                    API client and OrangeHRM API operations
+db/                     MariaDB client
+pages/                  Selenium page objects
+schemas/                Response schema definitions
+tests/                  UI, API, database, and hybrid tests
+utils/                  Browser, locator, screenshot, and test-data utilities
+docker-orangehrm/       Docker Compose environment
+.github/workflows/      GitHub Actions workflows
+.buildkite/              Buildkite pipeline definition
+config.py               Environment-based configuration
+conftest.py              Shared pytest fixtures
+pytest.ini              Pytest markers, logging, retries, and HTML reporting
+requirements.txt        Python dependencies
+.env.example             Safe template for local configuration
+```
 
-The `--env-file .env` option explicitly loads the project's root `.env` file, which contains the Docker database credentials.
+## Prerequisites
 
-### Docker data persistence
+- Python 3.14
+- Docker Desktop with Docker Compose
+- A supported browser for Selenium execution
+- Local OrangeHRM and MariaDB containers
+- Credentials for the local OrangeHRM test administrator
 
-The MariaDB database uses a Docker named volume to persist data.
+## Local setup
 
-Stopping containers or restarting the laptop does not delete the database.
+Run these commands from the repository root in PowerShell.
 
-To stop the containers:
+1. Create and activate a virtual environment:
 
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml down
+   ```powershell
+   py -3.14 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
 
-The database volume is preserved.
+2. Install dependencies and create a private local environment file:
 
-To stop the containers and delete the database volume:
+   ```powershell
+   python -m pip install --upgrade pip
+   pip install -r requirements.txt
+   Copy-Item .env.example .env
+   ```
 
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml down -v
+3. Edit `.env` and replace every placeholder. Keep `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`, and `QA_DB_PASSWORD` consistent with the local setup. The template leaves `MARIADB_DATABASE` empty so the OrangeHRM installer can create the application database.
 
-> `docker compose down -v` deletes the MariaDB volume and resets the OrangeHRM database. Use it only when a fresh database installation is required.
+4. Start the containers:
 
-### Docker Compose configuration
+   ```powershell
+   docker compose --env-file .env -f docker-orangehrm/docker-compose.yml up -d --wait
+   docker compose --env-file .env -f docker-orangehrm/docker-compose.yml ps
+   ```
 
-The Docker environment is defined in:
+5. On a fresh database, initialize OrangeHRM before running tests. The GitHub Actions workflow's **Install OrangeHRM via official CLI installer** step documents the non-interactive installer configuration used by CI. Use your local `.env` values for the administrator and database credentials.
 
-    docker-orangehrm/docker-compose.yml
+6. Run tests:
 
-The Compose setup contains:
+   ```powershell
+   pytest tests/ --headless -v
+   ```
 
-- OrangeHRM 5.9 application container
-- MariaDB 11 database container
-- Persistent MariaDB Docker volume
-- OrangeHRM exposed on port 8080
-- MariaDB exposed on port 3306
+## Running focused tests
 
-### Environment configuration
-
-Docker database credentials are stored in the project's `.env` file and are not committed to Git.
-
-The application and test framework also use environment-specific configuration through `.env`.
-
-The current local QA environment uses the Docker-based OrangeHRM instance:
-
-    QA_ORANGEHRM_BASE_URL=http://localhost:8080
-
-### Useful Docker commands
-
-Check container status:
-
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml ps
-
-View all container logs:
-
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml logs
-
-View OrangeHRM logs:
-
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml logs orangehrm
-
-View MariaDB logs:
-
-    docker compose --env-file .env -f docker-orangehrm\docker-compose.yml logs mariadb
-
-### Running the test suite
-
-Make sure Docker Desktop is running and the OrangeHRM and MariaDB containers are up before running the tests.
-
-Run the complete test suite:
-
-    pytest -v
+```powershell
+pytest tests/test_ui.py --headless -v
+pytest tests/test_api.py --headless -v
+pytest tests/test_database.py --headless -v
+pytest tests/test_hybrid.py --headless -v
+```
 
 Run tests in parallel:
 
-    pytest -n 4 -v
+```powershell
+pytest tests/ --headless -n 4 -v
+```
 
-Run tests against a specific environment:
+The configured HTML report is written to `reports/test-report.html`. The `--env` option selects an environment prefix; the default is `qa`.
 
-    pytest -v --env qa
+## Configuration and security
 
-## CI/CD
+Copy `.env.example` to `.env` and configure these values for your local environment:
 
-The project is validated through two CI platforms:
+- `QA_ORANGEHRM_BASE_URL`, `QA_ORANGEHRM_USERNAME`, `QA_ORANGEHRM_PASSWORD`
+- `QA_DB_HOST`, `QA_DB_PORT`, `QA_DB_NAME`, `QA_DB_USER`, `QA_DB_PASSWORD`
+- MariaDB container initialization values beginning with `MARIADB_`
 
-### GitHub Actions
+Never commit `.env`, real credentials, OAuth files, tokens, or test artifacts containing sensitive data. The repository's `.gitignore` excludes these local files.
 
-GitHub Actions runs the automation pipeline automatically when code is pushed to the `dev` or `demo` branch.
+## CI
 
-The pipeline:
+- **GitHub Actions:** `.github/workflows/pytest.yml` runs on pushes to `dev` and executes the automated suite in CI.
+- **Buildkite:** `.buildkite/pipeline.yml` contains a pipeline definition.
 
-- Starts the OrangeHRM and MariaDB Docker environment
-- Installs OrangeHRM through the official CLI installer
-- Verifies the database and application endpoint
-- Installs Python dependencies
-- Runs the complete pytest suite
-- Executes tests in parallel using pytest-xdist (`-n 4`)
-- Uploads test reports and screenshots as artifacts
-- Tears down the Docker environment after the run
+The separate `demo` branch has an additional OAuth experiment in `tests/test_oauth.py` and `.github/workflows/demo_pytest.yml`. It is not part of the default branch's core test modules. The OAuth experiment can create an employee and does not provide the same cleanup guarantee as the core fixtures; run it only against a disposable OrangeHRM environment, never a production or shared QA instance.
 
-Workflows:
+## Related projects
 
-    .github/workflows/pytest.yml
-    .github/workflows/demo_pytest.yml
-
-### Buildkite
-
-Buildkite is configured to automatically trigger when code is pushed to the `demo` branch through the GitHub webhook integration.
-
-The Buildkite pipeline:
-
-- Starts the Docker-based OrangeHRM environment
-- Installs and verifies OrangeHRM
-- Runs UI, API, database, and hybrid tests
-- Executes tests in parallel using pytest-xdist (`-n 4`)
-- Generates a self-contained HTML pytest report
-- Uploads the report as a Buildkite artifact
-- Continues artifact upload and Docker cleanup even when tests fail
-
-Pipeline definition:
-
-    .buildkite/pipeline.yml
-
-### CI architecture
-
-    Git push
-       |
-       +--------------------> GitHub Actions
-       |                         |
-       |                         +--> Docker
-       |                         +--> pytest -n 4
-       |                         +--> Test artifacts
-       |
-       +--------------------> Buildkite
-                                 |
-                                 +--> Docker
-                                 +--> pytest -n 4
-                                 +--> HTML report
-                                 +--> Test artifacts
-
-Both CI pipelines use the same Docker-based OrangeHRM test environment and the same automated test suite.
+- [OrangeHRM Playwright Automation](https://github.com/mudassarns/orangehrm_playwright_project)
+- [OrangeHRM AI SDET Project](https://github.com/mudassarns/orangehrm_ai_sdet_project)
